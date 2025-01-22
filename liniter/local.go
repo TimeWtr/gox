@@ -16,9 +16,10 @@ package liniter
 
 import (
 	"context"
-	"github.com/TimeWtr/gox/errorx"
 	"sync"
 	"time"
+
+	"github.com/TimeWtr/gox/errorx"
 )
 
 // local node limiter
