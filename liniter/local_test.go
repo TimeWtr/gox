@@ -12,17 +12,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package errorx
+package liniter
 
-import "errors"
-
-// ErrOverMaxRetries Retry strategy error
-var (
-	ErrOverMaxRetries = errors.New("over max retry limit")
+import (
+	"context"
+	"sync"
+	"testing"
+	"time"
 )
 
-// ErrOverMaxLimit Over limit
-var (
-	ErrOverMaxLimit = errors.New("over max limit")
-	ErrClosed       = errors.New("limiter closed")
-)
+func TestNewBuckets(t *testing.T) {
+	buckets := NewBuckets(time.Second, 10)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		for {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*500)
+			ok, err := buckets.Allow(ctx)
+			cancel()
+			t.Log("error:", err)
+			if err != nil {
+				return
+			}
+
+			t.Log("ok:", ok)
+			if !ok {
+				return
+			}
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		time.Sleep(time.Second * 20)
+		buckets.Close()
+	}()
+
+	wg.Wait()
+}

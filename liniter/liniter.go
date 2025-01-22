@@ -12,17 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package errorx
+package liniter
 
-import "errors"
-
-// ErrOverMaxRetries Retry strategy error
-var (
-	ErrOverMaxRetries = errors.New("over max retry limit")
+import (
+	"context"
 )
 
-// ErrOverMaxLimit Over limit
-var (
-	ErrOverMaxLimit = errors.New("over max limit")
-	ErrClosed       = errors.New("limiter closed")
-)
+// Limiter Current Limiter Unified Interface
+type Limiter interface {
+	// Allow To determine whether to allow the request to be processed
+	Allow(ctx context.Context) (bool, error)
+	// Close send signal to close the limiter
+	Close()
+}
