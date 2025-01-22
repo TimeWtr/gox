@@ -44,7 +44,7 @@ func TestNewAgainNow(t *testing.T) {
 
 func TestNewFixedInterval(t *testing.T) {
 	var timer *time.Timer
-	strategy := NewFixedInterval(time.Second, 5)
+	strategy := NewFixedInterval(time.Millisecond*50, 5)
 	for i := 0; i < 6; i++ {
 		duration, err := strategy.Next()
 		if err != nil {
@@ -53,7 +53,70 @@ func TestNewFixedInterval(t *testing.T) {
 		}
 
 		t.Log("允许重试，时间间隔：", duration)
-		assert.Equal(t, time.Second, duration)
+		assert.Equal(t, time.Millisecond*50, duration)
+		if timer == nil {
+			timer = time.NewTimer(duration)
+		} else {
+			timer.Reset(duration)
+		}
+		<-timer.C
+	}
+}
+
+func TestNewExponentialBackoff(t *testing.T) {
+	var timer *time.Timer
+	strategy := NewExponentialBackoff(time.Millisecond*50, 5)
+	targetDuration := time.Millisecond * 50
+	for i := 0; i < 6; i++ {
+		duration, err := strategy.Next()
+		if err != nil {
+			assert.Error(t, err, errorx.ErrOverMaxRetries)
+			return
+		}
+
+		t.Log("允许重试，时间间隔：", duration)
+		targetDuration <<= 1
+		assert.Equal(t, targetDuration, duration)
+		if timer == nil {
+			timer = time.NewTimer(duration)
+		} else {
+			timer.Reset(duration)
+		}
+		<-timer.C
+	}
+}
+
+func TestNewRandomInterval(t *testing.T) {
+	var timer *time.Timer
+	strategy := NewRandomInterval(5, 100)
+	for i := 0; i < 6; i++ {
+		duration, err := strategy.Next()
+		if err != nil {
+			assert.Error(t, err, errorx.ErrOverMaxRetries)
+			return
+		}
+
+		t.Log("允许重试，时间间隔：", duration)
+		if timer == nil {
+			timer = time.NewTimer(duration)
+		} else {
+			timer.Reset(duration)
+		}
+		<-timer.C
+	}
+}
+
+func TestNewComplexInterval(t *testing.T) {
+	var timer *time.Timer
+	strategy := NewComplexInterval(time.Millisecond*10, 5, 100)
+	for i := 0; i < 6; i++ {
+		duration, err := strategy.Next()
+		if err != nil {
+			assert.Error(t, err, errorx.ErrOverMaxRetries)
+			return
+		}
+
+		t.Log("允许重试，时间间隔：", duration)
 		if timer == nil {
 			timer = time.NewTimer(duration)
 		} else {

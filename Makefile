@@ -1,3 +1,8 @@
+# 单元测试
+.PHONY: ut
+ut:
+	@go test -race ./...
+
 # 安装依赖
 .PHONY: tidy
 tidy:
@@ -13,3 +18,4 @@ fmt:
 check:
 	@$(MAKE) --no-print-directory tidy
 	@$(MAKE) --no-print-directory fmt
+	@$(MAKE) --no-print-directory ut
