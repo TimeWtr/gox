@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package liniter
+package limiter
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/TimeWtr/gox/errorx"
@@ -24,10 +23,10 @@ import (
 
 // local node limiter
 
-var (
-	once sync.Once
-	bk   *Buckets
-)
+//var (
+//	once sync.Once
+//	bk   *Buckets
+//)
 
 // Buckets token bucket limiter
 type Buckets struct {
@@ -40,31 +39,31 @@ type Buckets struct {
 }
 
 func NewBuckets(interval time.Duration, capacity int64) Limiter {
-	once.Do(func() {
-		bk = &Buckets{
-			ch:       make(chan struct{}, capacity),
-			closeCh:  make(chan struct{}),
-			interval: interval,
-		}
+	//once.Do(func() {
+	bk := &Buckets{
+		ch:       make(chan struct{}, capacity),
+		closeCh:  make(chan struct{}),
+		interval: interval,
+	}
 
-		go func() {
-			ticker := time.NewTicker(bk.interval)
-			defer ticker.Stop()
+	ticker := time.NewTicker(bk.interval)
 
-			for {
+	go func() {
+		for {
+			select {
+			case <-bk.closeCh:
+				close(bk.ch)
+				ticker.Stop()
+				return
+			case <-ticker.C:
 				select {
-				case <-bk.closeCh:
-					close(bk.ch)
-					return
-				case <-ticker.C:
-					select {
-					case bk.ch <- struct{}{}:
-					default:
-					}
+				case bk.ch <- struct{}{}:
+				default:
 				}
 			}
-		}()
-	})
+		}
+	}()
+	//})
 
 	return bk
 }
@@ -72,7 +71,7 @@ func NewBuckets(interval time.Duration, capacity int64) Limiter {
 func (b *Buckets) Allow(ctx context.Context) (bool, error) {
 	select {
 	case <-ctx.Done():
-		// context deadline
+		// context timeout
 		return false, ctx.Err()
 	case <-b.closeCh:
 		// receive close signal

@@ -12,42 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package liniter
+package limiter
 
 import (
 	"context"
-	"sync"
-	"testing"
-	"time"
 )
 
-func TestNewBuckets(t *testing.T) {
-	buckets := NewBuckets(time.Second, 10)
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		for {
-			ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*500)
-			ok, err := buckets.Allow(ctx)
-			cancel()
-			t.Log("error:", err)
-			if err != nil {
-				return
-			}
-
-			t.Log("ok:", ok)
-			if !ok {
-				return
-			}
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-		time.Sleep(time.Second * 20)
-		buckets.Close()
-	}()
-
-	wg.Wait()
+// Limiter Current Limiter Unified Interface
+type Limiter interface {
+	// Allow To determine whether to allow the request to be processed
+	Allow(ctx context.Context) (bool, error)
+	// Close send signal to close the limiter
+	Close()
 }

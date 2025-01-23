@@ -12,16 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package liniter
-
-import (
-	"context"
-)
-
-// Limiter Current Limiter Unified Interface
-type Limiter interface {
-	// Allow To determine whether to allow the request to be processed
-	Allow(ctx context.Context) (bool, error)
-	// Close send signal to close the limiter
-	Close()
-}
+package limiter
