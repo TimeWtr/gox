@@ -17,6 +17,7 @@ package limiter
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/TimeWtr/gox/errorx"
@@ -118,3 +119,60 @@ func (l *LeakyBucket) Close() {
 		l.ticker.Stop()
 	})
 }
+
+// FixedWindow The fixed window algorithm is implemented by fix window(interval).
+type FixedWindow struct {
+	// window size
+	interval time.Duration
+	// start time
+	startTime int64
+	// request limit rate
+	rate int64
+	// current window request counter
+	cnt int64
+}
+
+func NewFixedWindow(interval time.Duration, rate int64) Limiter {
+	return &FixedWindow{
+		interval:  interval,
+		startTime: time.Now().UnixNano(),
+		rate:      rate,
+	}
+}
+
+func (f *FixedWindow) Allow(ctx context.Context) (bool, error) {
+	select {
+	case <-ctx.Done():
+		return false, ctx.Err()
+	default:
+	}
+
+	// Determine whether the current timestamp is within the window period.
+	now := time.Now().UnixNano()
+	cnt := atomic.LoadInt64(&f.cnt)
+	if f.startTime+f.interval.Nanoseconds() <= now {
+		// window expired
+		if atomic.CompareAndSwapInt64(&f.startTime, f.startTime, now) {
+			atomic.CompareAndSwapInt64(&f.cnt, cnt, 0)
+		}
+	}
+
+	select {
+	case <-ctx.Done():
+		return false, ctx.Err()
+	default:
+	}
+
+	cnt = atomic.AddInt64(&f.cnt, 1)
+	if cnt >= f.rate {
+		// over request limit
+		return false, errorx.ErrOverMaxLimit
+	}
+
+	// counter ++
+	atomic.AddInt64(&f.cnt, 1)
+
+	return true, nil
+}
+
+func (f *FixedWindow) Close() {}

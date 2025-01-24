@@ -20,6 +20,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TimeWtr/gox/errorx"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -174,6 +176,82 @@ func TestLeakyBucket_Context_Deadline_Exceeded(t *testing.T) {
 		lb.Close()
 		close(closeCh)
 
+	}()
+
+	wg.Wait()
+}
+
+func TestLeakyBucket_Err_Limit(t *testing.T) {
+	lb := NewLeakyBucket(time.Second * 5)
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	closeCh := make(chan struct{})
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-closeCh:
+				return
+			default:
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			_, err := lb.Allow(ctx)
+			cancel()
+			assert.Error(t, errorx.ErrOverMaxLimit, err)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		time.Sleep(time.Second * 2)
+		lb.Close()
+		close(closeCh)
+
+	}()
+
+	wg.Wait()
+}
+
+func TestNewFixedWindow(t *testing.T) {
+	fw := NewFixedWindow(time.Second*5, 1)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	closeCh := make(chan struct{})
+	go func() {
+		defer wg.Done()
+
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-closeCh:
+				return
+			case <-ticker.C:
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			ok, err := fw.Allow(ctx)
+			cancel()
+			if err != nil {
+				t.Log("error:", err)
+			}
+
+			t.Log("ok:", ok)
+			if !ok {
+				continue
+			}
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		defer close(closeCh)
+		defer fw.Close()
+
+		time.Sleep(time.Second * 5)
 	}()
 
 	wg.Wait()
