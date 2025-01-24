@@ -19,6 +19,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewBuckets(t *testing.T) {
@@ -100,6 +102,78 @@ func TestNewBuckets_limit(t *testing.T) {
 		time.Sleep(time.Second * 10)
 		buckets.Close()
 		close(closeCh)
+	}()
+
+	wg.Wait()
+}
+
+func TestLeakyBucket_Allow(t *testing.T) {
+	lb := NewLeakyBucket(50 * time.Nanosecond)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	closeCh := make(chan struct{})
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-closeCh:
+				t.Log("receive close signal")
+				return
+			default:
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*500)
+			ok, err := lb.Allow(ctx)
+			cancel()
+			if err != nil {
+				t.Log("error:", err)
+				continue
+			}
+
+			t.Log("ok:", ok)
+			if !ok {
+				continue
+			}
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		time.Sleep(time.Second * 5)
+		lb.Close()
+		close(closeCh)
+	}()
+
+	wg.Wait()
+}
+
+func TestLeakyBucket_Context_Deadline_Exceeded(t *testing.T) {
+	lb := NewLeakyBucket(time.Millisecond * 5)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	closeCh := make(chan struct{})
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-closeCh:
+				return
+			default:
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond)
+			_, err := lb.Allow(ctx)
+			cancel()
+			assert.Error(t, context.DeadlineExceeded, err)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		time.Sleep(time.Second * 2)
+		lb.Close()
+		close(closeCh)
+
 	}()
 
 	wg.Wait()

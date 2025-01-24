@@ -16,6 +16,7 @@ package limiter
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/TimeWtr/gox/errorx"
@@ -39,7 +40,6 @@ type Buckets struct {
 }
 
 func NewBuckets(interval time.Duration, capacity int64) Limiter {
-	//once.Do(func() {
 	bk := &Buckets{
 		ch:       make(chan struct{}, capacity),
 		closeCh:  make(chan struct{}),
@@ -63,7 +63,6 @@ func NewBuckets(interval time.Duration, capacity int64) Limiter {
 			}
 		}
 	}()
-	//})
 
 	return bk
 }
@@ -86,4 +85,36 @@ func (b *Buckets) Allow(ctx context.Context) (bool, error) {
 
 func (b *Buckets) Close() {
 	close(b.closeCh)
+}
+
+// LeakyBucket The leaky bucket algorithm is implemented by ticker.
+type LeakyBucket struct {
+	// time duration
+	ticker *time.Ticker
+	// once do
+	once sync.Once
+}
+
+func NewLeakyBucket(interval time.Duration) Limiter {
+	return &LeakyBucket{
+		ticker: time.NewTicker(interval),
+		once:   sync.Once{},
+	}
+}
+
+func (l *LeakyBucket) Allow(ctx context.Context) (bool, error) {
+	select {
+	case <-ctx.Done():
+		return false, ctx.Err()
+	case <-l.ticker.C:
+		return true, nil
+	default:
+		return false, errorx.ErrOverMaxLimit
+	}
+}
+
+func (l *LeakyBucket) Close() {
+	l.once.Do(func() {
+		l.ticker.Stop()
+	})
 }
