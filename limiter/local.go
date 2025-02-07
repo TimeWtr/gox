@@ -176,3 +176,16 @@ func (f *FixedWindow) Allow(ctx context.Context) (bool, error) {
 }
 
 func (f *FixedWindow) Close() {}
+
+type LeakyWindow struct {
+}
+
+func (l *LeakyWindow) Allow(ctx context.Context) (bool, error) {
+	//TODO implement me
+	return true, nil
+}
+
+func (l *LeakyWindow) Close() {
+	//TODO implement me
+	return
+}
