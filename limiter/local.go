@@ -15,6 +15,7 @@
 package limiter
 
 import (
+	"container/list"
 	"context"
 	"sync"
 	"sync/atomic"
@@ -22,13 +23,6 @@ import (
 
 	"github.com/TimeWtr/gox/errorx"
 )
-
-// local node limiter
-
-//var (
-//	once sync.Once
-//	bk   *Buckets
-//)
 
 // Buckets token bucket limiter
 type Buckets struct {
@@ -177,15 +171,63 @@ func (f *FixedWindow) Allow(ctx context.Context) (bool, error) {
 
 func (f *FixedWindow) Close() {}
 
-type LeakyWindow struct {
+// SlidingWindow the implement of slide window limiter based on linked list.
+type SlidingWindow struct {
+	// the request count of this window allowed.
+	rate int
+	// window request queue
+	q *list.List
+	// locker
+	l *sync.Mutex
+	// window size
+	interval time.Duration
 }
 
-func (l *LeakyWindow) Allow(ctx context.Context) (bool, error) {
-	//TODO implement me
+func NewSlidingWindow(interval time.Duration, rate int) Limiter {
+	return &SlidingWindow{
+		interval: interval,
+		q:        list.New(),
+		l:        &sync.Mutex{},
+		rate:     rate,
+	}
+}
+
+func (l *SlidingWindow) Allow(ctx context.Context) (bool, error) {
+	// whether context timeout
+	select {
+	case <-ctx.Done():
+		return false, nil
+	default:
+	}
+
+	// now represent the end time of this window.
+	now := time.Now().UnixNano()
+
+	// fast path
+	l.l.Lock()
+	if l.q.Len() < l.rate {
+		l.q.PushBack(now)
+		l.l.Unlock()
+		return true, nil
+	}
+
+	// low path
+	startTime := now - l.interval.Nanoseconds()
+	e := l.q.Front()
+	for e != nil && e.Value.(int64) <= startTime {
+		_ = l.q.Remove(e)
+		e = l.q.Front()
+	}
+	l.l.Unlock()
+
+	l.l.Lock()
+	defer l.l.Unlock()
+	if l.q.Len() >= l.rate {
+		return false, errorx.ErrOverMaxLimit
+	}
+	l.q.PushBack(now)
+
 	return true, nil
 }
 
-func (l *LeakyWindow) Close() {
-	//TODO implement me
-	return
-}
+func (l *SlidingWindow) Close() {}

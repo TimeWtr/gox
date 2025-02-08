@@ -256,3 +256,67 @@ func TestNewFixedWindow(t *testing.T) {
 
 	wg.Wait()
 }
+
+func TestSlidingWindow_Allow(t *testing.T) {
+	lb := NewSlidingWindow(time.Second*5, 5)
+	var wg sync.WaitGroup
+
+	wg.Add(2)
+	closeCh := make(chan struct{})
+	go func() {
+		defer wg.Done()
+
+		ticker := time.NewTicker(500 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-closeCh:
+				t.Log("receive close signal")
+				return
+			case <-ticker.C:
+				ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+				ok, err := lb.Allow(ctx)
+				cancel()
+				if err != nil {
+					t.Log("error:", err)
+				} else {
+					t.Log("ok:", ok)
+				}
+			default:
+			}
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		time.Sleep(time.Second * 11)
+		lb.Close()
+		close(closeCh)
+	}()
+
+	wg.Wait()
+}
+
+func TestSlidingWindow_Context_Timeout(t *testing.T) {
+	lb := NewSlidingWindow(time.Second*5, 1)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond)
+	defer cancel()
+	ok, err := lb.Allow(ctx)
+	assert.False(t, ok)
+	assert.Error(t, context.DeadlineExceeded, err)
+}
+
+func BenchmarkSlidingWindow_Allow(b *testing.B) {
+	lb := NewSlidingWindow(time.Second, 100000)
+	for i := 0; i < b.N; i++ {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		ok, err := lb.Allow(ctx)
+		cancel()
+		if err != nil {
+			b.Log(err)
+			continue
+		}
+		b.Log("ok:", ok)
+	}
+}
