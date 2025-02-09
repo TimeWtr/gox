@@ -26,3 +26,7 @@ var (
 	ErrOverMaxLimit = errors.New("over max limit")
 	ErrClosed       = errors.New("limiter closed")
 )
+
+var (
+	MetricsChannelNotExists = errors.New("metrics channel not exists")
+)
