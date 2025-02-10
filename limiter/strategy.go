@@ -14,21 +14,20 @@
 
 package limiter
 
-import (
-	"context"
-)
+import "context"
 
-// Limiter signal machine Limiter Unified Interface
-type Limiter interface {
-	// Allow To determine whether to allow the request to be processed
-	Allow(ctx context.Context) (bool, error)
-	// Close send signal to close the limiter
-	Close()
+// DecisionStrategy The decision-making strategy interface decides whether to dynamically
+// adjust the request rate limit based on the real-time incoming indicator data.
+type DecisionStrategy interface {
+	// AdjustRate Calculate and decide whether to adjust the request rate.
+	AdjustRate(ctx context.Context) Value
 }
 
-type DisLimiter interface {
-	// Allow To determine whether to allow the request to be processed
-	Allow(ctx context.Context, latitude string) (bool, error)
-	// Close send signal to close the limiter
-	Close()
+type Value struct {
+	// Whether to adjust,if so,it returns true, otherwise it returns false.
+	Adjust bool
+	// if Adjust is true, it returns rate number, normal is zero.
+	Rate float64
+	// if decision is fail, it returns error.
+	Err error
 }
