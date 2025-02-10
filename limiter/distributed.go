@@ -55,6 +55,8 @@ func WithInterval(interval time.Duration) Options {
 	}
 }
 
+var _ DisLimiter = (*DSlidingWindow)(nil)
+
 // DSlidingWindow distributed sliding window implement based on redis.
 // this implement supports dynamic adjustment of the limit threshold
 // and reception of the collected machine metrics. sliding window
@@ -72,7 +74,7 @@ type DSlidingWindow struct {
 	mu *sync.RWMutex
 }
 
-func NewDSlidingWindow(client redis.Cmdable, opts ...Options) Limiter {
+func NewDSlidingWindow(client redis.Cmdable, opts ...Options) DisLimiter {
 	limiter := &DSlidingWindow{
 		client: client,
 		ch:     map[string]chan Metrics{},
@@ -118,7 +120,12 @@ func (d *DSlidingWindow) Notify(ctx context.Context, latitude string) (chan<- Me
 	return ch, nil
 }
 
-func (d *DSlidingWindow) Allow(ctx context.Context) (bool, error) {
+func (d *DSlidingWindow) DynamicRate(ctx context.Context, latitude string, strategy DecisionStrategy) error {
+
+	return nil
+}
+
+func (d *DSlidingWindow) Allow(ctx context.Context, latitude string) (bool, error) {
 
 	return true, nil
 }
