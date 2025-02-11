@@ -20,7 +20,7 @@ import "context"
 // adjust the request rate limit based on the real-time incoming indicator data.
 type DecisionStrategy interface {
 	// AdjustRate Calculate and decide whether to adjust the request rate.
-	AdjustRate(ctx context.Context) Value
+	AdjustRate(ctx context.Context, metrics Metrics) Value
 }
 
 type Value struct {
@@ -30,4 +30,16 @@ type Value struct {
 	Rate float64
 	// if decision is fail, it returns error.
 	Err error
+}
+
+type BS struct {
+}
+
+func NewBS() DecisionStrategy {
+	return &BS{}
+}
+
+func (b *BS) AdjustRate(ctx context.Context, metrics Metrics) Value {
+
+	return Value{}
 }

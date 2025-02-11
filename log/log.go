@@ -12,22 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package errorx
+package log
 
-import "errors"
+type Logger interface {
+	Debugf(msg string, args ...Field)
+	Infof(msg string, args ...Field)
+	Warnf(msg string, args ...Field)
+	Errorf(msg string, args ...Field)
+}
 
-// ErrOverMaxRetries Retry strategy error
-var (
-	ErrOverMaxRetries = errors.New("over max retry limit")
-)
-
-// ErrOverMaxLimit Over limit
-var (
-	ErrOverMaxLimit = errors.New("over max limit")
-	ErrClosed       = errors.New("limiter closed")
-)
-
-var (
-	ErrMetricsChannelNotExists = errors.New("metrics channel not exists")
-	ErrDelConfig               = errors.New("delete rate config error")
-)
+type Field struct {
+	Key   string
+	Value any
+}
