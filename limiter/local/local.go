@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package limiter
+package local
 
 import (
 	"container/list"
@@ -20,6 +20,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/TimeWtr/gox/limiter"
 
 	"github.com/TimeWtr/gox/errorx"
 )
@@ -34,7 +36,7 @@ type Buckets struct {
 	interval time.Duration
 }
 
-func NewBuckets(interval time.Duration, capacity int64) Limiter {
+func NewBuckets(interval time.Duration, capacity int64) limiter.Limiter {
 	bk := &Buckets{
 		ch:       make(chan struct{}, capacity),
 		closeCh:  make(chan struct{}),
@@ -90,7 +92,7 @@ type LeakyBucket struct {
 	once sync.Once
 }
 
-func NewLeakyBucket(interval time.Duration) Limiter {
+func NewLeakyBucket(interval time.Duration) limiter.Limiter {
 	return &LeakyBucket{
 		ticker: time.NewTicker(interval),
 		once:   sync.Once{},
@@ -126,7 +128,7 @@ type FixedWindow struct {
 	cnt int64
 }
 
-func NewFixedWindow(interval time.Duration, rate int64) Limiter {
+func NewFixedWindow(interval time.Duration, rate int64) limiter.Limiter {
 	return &FixedWindow{
 		interval:  interval,
 		startTime: time.Now().UnixNano(),
@@ -183,7 +185,7 @@ type SlidingWindow struct {
 	interval time.Duration
 }
 
-func NewSlidingWindow(interval time.Duration, rate int) Limiter {
+func NewSlidingWindow(interval time.Duration, rate int) limiter.Limiter {
 	return &SlidingWindow{
 		interval: interval,
 		q:        list.New(),

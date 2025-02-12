@@ -1,0 +1,12 @@
+- "ruleName": "cpu_usage"
+  "threshold": 80
+  "action": "decrease_rate"
+  "amount": 20
+- "ruleName": "mem_usage"
+  "threshold": 85
+  "action": "decrease_rate"
+  "amount": 10
+- "ruleName": "request_latency"
+  "threshold": 200
+  "action": "decrease_rate"
+  "amount": 15

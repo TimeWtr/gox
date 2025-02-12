@@ -12,23 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package errorx
+package log
 
-import "errors"
+type NopLogger struct{}
 
-// ErrOverMaxRetries Retry strategy error
-var (
-	ErrOverMaxRetries = errors.New("over max retry limit")
-)
+func NewNopLogger() *NopLogger {
+	return &NopLogger{}
+}
 
-// ErrOverMaxLimit Over limit
-var (
-	ErrOverMaxLimit = errors.New("over max limit")
-	ErrClosed       = errors.New("limiter closed")
-)
+func (n *NopLogger) Debugf(msg string, args ...Field) {}
 
-var (
-	ErrMetricsChannelNotExists = errors.New("metrics channel not exists")
-	ErrDelConfig               = errors.New("delete rate config error")
-	ErrFileType                = errors.New("unsupported file type")
-)
+func (n NopLogger) Infof(msg string, args ...Field) {}
+
+func (n NopLogger) Warnf(msg string, args ...Field) {}
+
+func (n NopLogger) Errorf(msg string, args ...Field) {}

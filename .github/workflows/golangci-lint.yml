@@ -26,8 +26,8 @@ on:
       - master
       - develop
   pull_request:
-    - "master"
-    - "develop"
+    - master
+    - develop
 permissions:
   contents: read
   # Optional: allow read access to pull request. Use with `only-new-issues` option.

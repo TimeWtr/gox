@@ -12,22 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package limiter
+package log
 
-import "context"
-
-// DecisionStrategy The decision-making strategy interface decides whether to dynamically
-// adjust the request rate limit based on the real-time incoming indicator data.
-type DecisionStrategy interface {
-	// AdjustRate Calculate and decide whether to adjust the request rate.
-	AdjustRate(ctx context.Context) Value
+type Logger interface {
+	Debugf(msg string, args ...Field)
+	Infof(msg string, args ...Field)
+	Warnf(msg string, args ...Field)
+	Errorf(msg string, args ...Field)
 }
 
-type Value struct {
-	// Whether to adjust,if so,it returns true, otherwise it returns false.
-	Adjust bool
-	// if Adjust is true, it returns rate number, normal is zero.
-	Rate float64
-	// if decision is fail, it returns error.
-	Err error
+type Field struct {
+	Key   string
+	Value any
 }
