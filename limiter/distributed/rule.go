@@ -12,23 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package errorx
+package distributed
 
-import "errors"
-
-// ErrOverMaxRetries Retry strategy error
-var (
-	ErrOverMaxRetries = errors.New("over max retry limit")
-)
-
-// ErrOverMaxLimit Over limit
-var (
-	ErrOverMaxLimit = errors.New("over max limit")
-	ErrClosed       = errors.New("limiter closed")
-)
-
-var (
-	ErrMetricsChannelNotExists = errors.New("metrics channel not exists")
-	ErrDelConfig               = errors.New("delete rate config error")
-	ErrFileType                = errors.New("unsupported file type")
-)
+type Rule struct {
+	RuleName  string `yaml:"ruleName" json:"ruleName" toml:"ruleName"`
+	Threshold int    `yaml:"threshold" json:"threshold" toml:"threshold"`
+	Action    string `yaml:"action" json:"action" toml:"action"`
+	Amount    int    `yaml:"amount" json:"amount" toml:"amount"`
+}

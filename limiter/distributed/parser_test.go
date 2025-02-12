@@ -12,23 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package errorx
+package distributed
 
-import "errors"
+import (
+	"testing"
 
-// ErrOverMaxRetries Retry strategy error
-var (
-	ErrOverMaxRetries = errors.New("over max retry limit")
+	"github.com/stretchr/testify/assert"
 )
 
-// ErrOverMaxLimit Over limit
-var (
-	ErrOverMaxLimit = errors.New("over max limit")
-	ErrClosed       = errors.New("limiter closed")
-)
+func TestNewYamlParser(t *testing.T) {
+	parser, err := NewParser("yaml")
+	assert.NoError(t, err)
+	rules, err := parser.Parse("./examples/rule.yaml")
+	assert.NoError(t, err)
+	t.Log(rules)
+}
 
-var (
-	ErrMetricsChannelNotExists = errors.New("metrics channel not exists")
-	ErrDelConfig               = errors.New("delete rate config error")
-	ErrFileType                = errors.New("unsupported file type")
-)
+func TestNewJsonParser(t *testing.T) {
+	parser, err := NewParser("json")
+	assert.NoError(t, err)
+	rules, err := parser.Parse("./examples/rule.json")
+	assert.NoError(t, err)
+	t.Log(rules)
+}

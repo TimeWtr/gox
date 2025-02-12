@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package limiter
+package distributed
 
 import "context"
 
@@ -32,8 +32,7 @@ type Value struct {
 	Err error
 }
 
-type BS struct {
-}
+type BS struct{}
 
 func NewBS() DecisionStrategy {
 	return &BS{}

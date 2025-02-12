@@ -12,16 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package limiter
+package distributed
 
 import (
 	"context"
 	"time"
 
+	"github.com/TimeWtr/gox/limiter"
+
 	"github.com/redis/go-redis/v9"
 )
 
-var _ DisLimiter = (*DSlidingWindow)(nil)
+var _ limiter.DisLimiter = (*DSlidingWindow)(nil)
 
 // DSlidingWindow distributed sliding window implement based on redis.
 // this implement supports dynamic adjustment of the limit threshold
@@ -34,7 +36,7 @@ type DSlidingWindow struct {
 	interval time.Duration
 }
 
-func NewDSlidingWindow(client redis.Cmdable) DisLimiter {
+func NewDSlidingWindow(client redis.Cmdable) limiter.DisLimiter {
 	return &DSlidingWindow{
 		client: client,
 	}

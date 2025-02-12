@@ -3,10 +3,12 @@ module github.com/TimeWtr/gox
 go 1.23.4
 
 require (
+	github.com/BurntSushi/toml v1.4.0
 	github.com/redis/go-redis/v9 v9.7.0
 	github.com/stretchr/testify v1.10.0
 	go.etcd.io/etcd/client/v3 v3.5.18
 	go.uber.org/zap v1.17.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -30,5 +32,4 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230822172742-b8732ec3820d // indirect
 	google.golang.org/grpc v1.59.0 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

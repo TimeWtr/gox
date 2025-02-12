@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package limiter
+package distributed
 
 import (
 	"context"
 	"sync"
 	"time"
+
+	limiter2 "github.com/TimeWtr/gox/limiter"
 
 	"github.com/TimeWtr/gox/log"
 	"go.uber.org/zap"
@@ -26,10 +28,16 @@ import (
 )
 
 type EI interface {
+	// Register the method to register latitude request rate.
 	Register(ctx context.Context, latitude string, rate uint64, capacity int) error
+	// Unregister the method to unregister latitude request rate.
 	Unregister(ctx context.Context, latitude string) error
+	// Notify the method to get the specified channel of sending metrics.
 	Notify(ctx context.Context, latitude string) (chan<- Metrics, error)
+	// DynamicController the method to dynamic adjust request
+	// rate according to received metrics.
 	DynamicController() error
+	// Close the method to close distributed Executor.
 	Close() error
 }
 
@@ -55,7 +63,7 @@ type Executor struct {
 	// the interface to operate request config rate.
 	cf Configuration
 	// limiter interface
-	limiter DisLimiter
+	limiter limiter2.DisLimiter
 	// the strategy for deciding whether to modify rate.
 	stg DecisionStrategy
 	// logger
@@ -64,7 +72,7 @@ type Executor struct {
 	closeCh chan struct{}
 }
 
-func NewExecutor(cf Configuration, limiter DisLimiter, opts ...Options) *Executor {
+func NewExecutor(cf Configuration, limiter limiter2.DisLimiter, opts ...Options) *Executor {
 	logger, _ := zap.NewDevelopment()
 
 	e := &Executor{
