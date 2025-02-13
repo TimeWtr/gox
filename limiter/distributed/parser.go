@@ -17,74 +17,188 @@ package distributed
 import (
 	"encoding/json"
 	"io/ioutil"
+	"time"
+
+	clientv3 "go.etcd.io/etcd/client/v3"
+	"golang.org/x/net/context"
 
 	"github.com/BurntSushi/toml"
 	"github.com/TimeWtr/gox/errorx"
 	"gopkg.in/yaml.v3"
 )
 
+type ConfigSourceType string
+
+const (
+	ConfigSourceTypeFile ConfigSourceType = "file"
+	ConfigSourceTypeEtcd ConfigSourceType = "etcd"
+)
+
+type DataType string
+
+const (
+	DataTypeJson DataType = "json"
+	DataTypeYaml DataType = "yaml"
+	DataTypeToml DataType = "toml"
+)
+
 // Parser the interface to parse rule config file.
 type Parser interface {
-	Parse(filepath string) ([]Rule, error)
+	// Parse the method to parse config metadata.
+	Parse() (Config, error)
 }
 
-func NewParser(fileType string) (Parser, error) {
-	switch fileType {
+// ConfigSource the interface to adapt multi config source, such as
+// local file, etcd, nacos etc.
+type ConfigSource interface {
+	Read() ([]byte, error)
+	SourceType() ConfigSourceType
+	DataType() DataType
+}
+
+var _ ConfigSource = (*FileSource)(nil)
+
+type FileSource struct {
+	filepath string
+	dataType DataType
+}
+
+func NewFileSource(filepath string, dataType DataType) ConfigSource {
+	return &FileSource{
+		filepath: filepath,
+		dataType: dataType,
+	}
+}
+
+func (f *FileSource) Read() ([]byte, error) {
+	bs, err := ioutil.ReadFile(f.filepath)
+	if err != nil {
+		return nil, err
+	}
+
+	return bs, nil
+}
+
+func (f *FileSource) SourceType() ConfigSourceType {
+	return ConfigSourceTypeFile
+}
+
+func (f *FileSource) DataType() DataType {
+	return f.dataType
+}
+
+type EtcdSource struct {
+	client   *clientv3.Client
+	key      string
+	dataType DataType
+}
+
+func NewEtcdSource(client *clientv3.Client, key string, dataType DataType) ConfigSource {
+	return &EtcdSource{
+		client:   client,
+		key:      key,
+		dataType: dataType,
+	}
+}
+
+func (e *EtcdSource) Read() ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	resp, err := e.client.Get(ctx, e.key)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(resp.Kvs) == 0 {
+		return nil, errorx.ErrConfigNotExists
+	}
+
+	return resp.Kvs[0].Value, nil
+}
+
+func (e *EtcdSource) SourceType() ConfigSourceType {
+	return ConfigSourceTypeEtcd
+}
+
+func (e *EtcdSource) DataType() DataType {
+	return e.dataType
+}
+
+func NewParser(cs ConfigSource) (Parser, error) {
+	bs, err := cs.Read()
+	if err != nil {
+		return nil, err
+	}
+
+	switch cs.DataType() {
 	case "json":
-		return NewJsonParser(), nil
+		return NewJsonParser(bs), nil
 	case "yaml":
-		return NewYamlParser(), nil
+		return NewYamlParser(bs), nil
 	case "toml":
-		return NewTomlParser(), nil
+		return NewTomlParser(bs), nil
 	default:
 		return nil, errorx.ErrFileType
 	}
 }
 
-type YamlParser struct{}
-
-func NewYamlParser() Parser {
-	return &YamlParser{}
+type YamlParser struct {
+	bs []byte
 }
 
-func (y *YamlParser) Parse(filepath string) ([]Rule, error) {
-	bs, err := ioutil.ReadFile(filepath)
+func NewYamlParser(bs []byte) Parser {
+	return &YamlParser{
+		bs: bs,
+	}
+}
+
+func (y *YamlParser) Parse() (Config, error) {
+	var cfg Config
+	err := yaml.Unmarshal(y.bs, &cfg)
 	if err != nil {
-		return nil, err
+		return Config{}, err
 	}
 
-	var rules []Rule
-	return rules, yaml.Unmarshal(bs, &rules)
+	return cfg, _check(cfg.Restrictions)
 }
 
-type JsonParser struct{}
-
-func NewJsonParser() Parser {
-	return &JsonParser{}
+type JsonParser struct {
+	bs []byte
 }
 
-func (j *JsonParser) Parse(filepath string) ([]Rule, error) {
-	bs, err := ioutil.ReadFile(filepath)
+func NewJsonParser(bs []byte) Parser {
+	return &JsonParser{
+		bs: bs,
+	}
+}
+
+func (j *JsonParser) Parse() (Config, error) {
+	var cfg Config
+	err := json.Unmarshal(j.bs, &cfg)
 	if err != nil {
-		return nil, err
+		return Config{}, err
 	}
 
-	var rules []Rule
-	return rules, json.Unmarshal(bs, &rules)
+	return cfg, _check(cfg.Restrictions)
 }
 
-type TomlParser struct{}
-
-func NewTomlParser() Parser {
-	return &TomlParser{}
+type TomlParser struct {
+	bs []byte
 }
 
-func (t *TomlParser) Parse(filepath string) ([]Rule, error) {
-	bs, err := ioutil.ReadFile(filepath)
+func NewTomlParser(bs []byte) Parser {
+	return &TomlParser{
+		bs: bs,
+	}
+}
+
+func (t *TomlParser) Parse() (Config, error) {
+	var cfg Config
+	err := toml.Unmarshal(t.bs, &cfg)
 	if err != nil {
-		return nil, err
+		return Config{}, err
 	}
 
-	var rules []Rule
-	return rules, toml.Unmarshal(bs, &rules)
+	return cfg, _check(cfg.Restrictions)
 }

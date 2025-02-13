@@ -14,7 +14,9 @@
 
 package distributed
 
-import "context"
+import (
+	"context"
+)
 
 // DecisionStrategy The decision-making strategy interface decides whether to dynamically
 // adjust the request rate limit based on the real-time incoming indicator data.
@@ -32,13 +34,33 @@ type Value struct {
 	Err error
 }
 
-type BS struct{}
+type BS struct {
+	conf Config
+}
 
-func NewBS() DecisionStrategy {
-	return &BS{}
+func NewBS(p Parser) (DecisionStrategy, error) {
+	cf, err := p.Parse()
+	if err != nil {
+		return nil, err
+	}
+	return &BS{
+		conf: cf,
+	}, nil
 }
 
 func (b *BS) AdjustRate(ctx context.Context, metrics Metrics) Value {
+	select {
+	case <-ctx.Done():
+		return Value{
+			Err: ctx.Err(),
+		}
+	default:
+	}
 
 	return Value{}
+}
+
+func (b *BS) checker(metrics Metrics) (alarm bool, err error) {
+
+	return false, nil
 }
