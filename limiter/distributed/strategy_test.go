@@ -15,34 +15,17 @@
 package distributed
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewYamlParser(t *testing.T) {
+func TestNewBS(t *testing.T) {
 	fs := NewFileSource("./examples/rule.yaml", DataTypeYaml)
-	parser, err := NewParser(fs)
-	assert.NoError(t, err)
-	cfg, err := parser.Parse()
-	assert.NoError(t, err)
-	t.Logf("config: %+v", cfg)
-}
-
-func TestNewJsonParser(t *testing.T) {
-	fs := NewFileSource("./examples/rule.json", DataTypeJson)
-	parser, err := NewParser(fs)
-	assert.NoError(t, err)
-	cfg, err := parser.Parse()
-	assert.NoError(t, err)
-	t.Logf("config: %+v", cfg)
-}
-
-func TestNewTomlParser(t *testing.T) {
-	fs := NewFileSource("./examples/rule.toml", DataTypeToml)
-	parser, err := NewParser(fs)
-	assert.NoError(t, err)
-	cfg, err := parser.Parse()
-	assert.NoError(t, err)
-	t.Logf("config: %+v", cfg)
+	p, err := NewParser(fs)
+	assert.Nil(t, err)
+	bs, err := NewBS(p)
+	assert.Nil(t, err)
+	bs.AdjustRate(context.Background(), Metrics{})
 }

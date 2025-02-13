@@ -1,20 +1,33 @@
-[
-  {
-    "ruleName": "cpu_usage",
-    "threshold": 80,
-    "action": "decrease_rate",
-    "amount": 20
-  },
-  {
-    "ruleName": "mem_usage",
-    "threshold": 80,
-    "action": "decrease_rate",
-    "amount": 10
-  },
-  {
-    "ruleName": "request_latency",
-    "threshold": 200,
-    "action": "decrease_rate",
-    "amount": 15
+{
+  "rate": 1000,
+  "restrictions": [
+    {
+      "ruleName": "cpu_usage",
+      "threshold": 80,
+      "action": "decrease",
+      "amount": 20
+    },
+    {
+      "ruleName": "mem_usage",
+      "threshold": 80,
+      "action": "decrease",
+      "amount": 10
+    },
+    {
+      "ruleName": "request_latency",
+      "threshold": 200,
+      "action": "decrease",
+      "amount": 15
+    },
+    {
+      "ruleName": "err_rate",
+      "threshold": 0.1,
+      "action": "decrease",
+      "amount": 10
+    }
+  ],
+  "grayRecover": {
+    "grayScale": 0.1,
+    "recoverTime": 60
   }
-]
+}

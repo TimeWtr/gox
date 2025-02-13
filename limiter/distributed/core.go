@@ -36,16 +36,16 @@ type EI interface {
 	Notify(ctx context.Context, latitude string) (chan<- Metrics, error)
 	// DynamicController the method to dynamic adjust request
 	// rate according to received metrics.
-	DynamicController() error
+	DynamicController(interval time.Duration) error
 	// Close the method to close distributed Executor.
 	Close() error
 }
 
 type Options func(*Executor)
 
-func WithDecisionStrategy(stg DecisionStrategy) Options {
+func WithLimiter(l limiter2.DisLimiter) Options {
 	return func(e *Executor) {
-		e.stg = stg
+		e.limiter = l
 	}
 }
 
@@ -72,15 +72,14 @@ type Executor struct {
 	closeCh chan struct{}
 }
 
-func NewExecutor(cf Configuration, limiter limiter2.DisLimiter, opts ...Options) *Executor {
+func NewExecutor(cf Configuration, stg DecisionStrategy, opts ...Options) EI {
 	logger, _ := zap.NewDevelopment()
 
 	e := &Executor{
 		ch:      map[string]chan Metrics{},
 		mu:      new(sync.RWMutex),
 		cf:      cf,
-		limiter: limiter,
-		stg:     NewBS(),
+		stg:     stg,
 		lg:      log.NewZapLogger(logger),
 		closeCh: make(chan struct{}),
 	}
@@ -127,6 +126,8 @@ func (e *Executor) DynamicController(interval time.Duration) error {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
+	errCh := make(chan error, len(e.ch))
+
 	for range ticker.C {
 		select {
 		case <-e.closeCh:
@@ -136,32 +137,36 @@ func (e *Executor) DynamicController(interval time.Duration) error {
 			for latitude, ch := range e.ch {
 				select {
 				case metrics := <-ch:
-					ctx1, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-					res := e.stg.AdjustRate(ctx1, metrics)
-					cancel()
-					if res.Err != nil {
-						// log error message
-						e.lg.Errorf("judge request rate error", log.Field{
+					go func() {
+						ctx1, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+						res := e.stg.AdjustRate(ctx1, metrics)
+						cancel()
+						if res.Err != nil {
+							// log error message
+							e.lg.Errorf("judge request rate error", log.Field{
+								Key:   "latitude",
+								Value: latitude,
+							}, log.Field{
+								Key:   "error",
+								Value: res.Err.Error(),
+							})
+
+							errCh <- res.Err
+							return
+						}
+
+						if !res.Adjust {
+							return
+						}
+						// modify
+						e.lg.Infof("judge request rate adjusted", log.Field{
 							Key:   "latitude",
 							Value: latitude,
 						}, log.Field{
-							Key:   "error",
-							Value: res.Err.Error(),
+							Key:   "rate",
+							Value: res.Rate,
 						})
-						return res.Err
-					}
-
-					if !res.Adjust {
-						continue
-					}
-					// modify
-					e.lg.Infof("judge request rate adjusted", log.Field{
-						Key:   "latitude",
-						Value: latitude,
-					}, log.Field{
-						Key:   "rate",
-						Value: res.Rate,
-					})
+					}()
 				default:
 				}
 			}
@@ -174,19 +179,4 @@ func (e *Executor) DynamicController(interval time.Duration) error {
 func (e *Executor) Close() error {
 	close(e.closeCh)
 	return nil
-}
-
-type Metrics struct {
-	// used cpu percent,
-	CPUUsage float64 `json:"cpu_usage,omitempty"`
-	// memory percent
-	MemUsage float64 `json:"mem_usage,omitempty"`
-	// used memory size, unit is bytes.
-	MemoryUsed uint64 `json:"memory_used,omitempty"`
-	// request latency, only used while type is API.
-	RequestLatency float64 `json:"request_latency,omitempty"`
-	// request error rate.
-	ErrRate float64 `json:"err_rate,omitempty"`
-	// current active connections.
-	ActiveConns uint64 `json:"active_conns,omitempty"`
 }
