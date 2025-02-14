@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package distributed
+package engine
 
 import (
 	"encoding/json"
 	"io/ioutil"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"golang.org/x/net/context"
@@ -30,8 +32,9 @@ import (
 type ConfigSourceType string
 
 const (
-	ConfigSourceTypeFile ConfigSourceType = "file"
-	ConfigSourceTypeEtcd ConfigSourceType = "etcd"
+	ConfigSourceTypeFile  ConfigSourceType = "file"
+	ConfigSourceTypeEtcd  ConfigSourceType = "etcd"
+	ConfigSourceTypeRedis ConfigSourceType = "redis"
 )
 
 type DataType string
@@ -58,6 +61,7 @@ type ConfigSource interface {
 
 var _ ConfigSource = (*FileSource)(nil)
 
+// FileSource the rule metadata source based on file system.
 type FileSource struct {
 	filepath string
 	dataType DataType
@@ -87,6 +91,7 @@ func (f *FileSource) DataType() DataType {
 	return f.dataType
 }
 
+// EtcdSource the rule metadata source based on etcd.
 type EtcdSource struct {
 	client   *clientv3.Client
 	key      string
@@ -125,6 +130,44 @@ func (e *EtcdSource) DataType() DataType {
 	return e.dataType
 }
 
+type RedisSource struct {
+	// redis client
+	client redis.Cmdable
+	// the key to store metadata
+	key string
+	// data type
+	dataType DataType
+}
+
+func NewRedisSource(client redis.Cmdable, key string, dataType DataType) ConfigSource {
+	return &RedisSource{
+		client:   client,
+		key:      key,
+		dataType: dataType,
+	}
+}
+
+func (r *RedisSource) Read() ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	res, err := r.client.Get(ctx, r.key).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	return []byte(res), nil
+}
+
+func (r *RedisSource) SourceType() ConfigSourceType {
+	return ConfigSourceTypeRedis
+}
+
+func (r *RedisSource) DataType() DataType {
+	return r.dataType
+}
+
+// NewParser the parser initialize method.
 func NewParser(cs ConfigSource) (Parser, error) {
 	bs, err := cs.Read()
 	if err != nil {
@@ -143,6 +186,7 @@ func NewParser(cs ConfigSource) (Parser, error) {
 	}
 }
 
+// YamlParser yaml parser to parse yaml type data.
 type YamlParser struct {
 	bs []byte
 }
@@ -160,9 +204,10 @@ func (y *YamlParser) Parse() (Config, error) {
 		return Config{}, err
 	}
 
-	return cfg, _check(cfg.Restrictions)
+	return cfg, checker(cfg)
 }
 
+// JsonParser json parser to parse json type data.
 type JsonParser struct {
 	bs []byte
 }
@@ -180,9 +225,10 @@ func (j *JsonParser) Parse() (Config, error) {
 		return Config{}, err
 	}
 
-	return cfg, _check(cfg.Restrictions)
+	return cfg, checker(cfg)
 }
 
+// TomlParser toml parser to parse toml type data.
 type TomlParser struct {
 	bs []byte
 }
@@ -200,5 +246,5 @@ func (t *TomlParser) Parse() (Config, error) {
 		return Config{}, err
 	}
 
-	return cfg, _check(cfg.Restrictions)
+	return cfg, checker(cfg)
 }

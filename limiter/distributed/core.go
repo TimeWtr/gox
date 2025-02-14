@@ -19,6 +19,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/TimeWtr/gox/limiter/distributed/engine"
+
 	limiter2 "github.com/TimeWtr/gox/limiter"
 
 	"github.com/TimeWtr/gox/log"
@@ -33,7 +35,7 @@ type EI interface {
 	// Unregister the method to unregister latitude request rate.
 	Unregister(ctx context.Context, latitude string) error
 	// Notify the method to get the specified channel of sending metrics.
-	Notify(ctx context.Context, latitude string) (chan<- Metrics, error)
+	Notify(ctx context.Context, latitude string) (chan<- engine.Metrics, error)
 	// DynamicController the method to dynamic adjust request
 	// rate according to received metrics.
 	DynamicController(interval time.Duration) error
@@ -57,7 +59,7 @@ func WithLogger(lg log.Logger) Options {
 
 type Executor struct {
 	// the channel collection for reporting metrics data.
-	ch map[string]chan Metrics
+	ch map[string]chan engine.Metrics
 	// locker lock the cf if request rate need to modify.
 	mu *sync.RWMutex
 	// the interface to operate request config rate.
@@ -76,7 +78,7 @@ func NewExecutor(cf Configuration, stg DecisionStrategy, opts ...Options) EI {
 	logger, _ := zap.NewDevelopment()
 
 	e := &Executor{
-		ch:      map[string]chan Metrics{},
+		ch:      map[string]chan engine.Metrics{},
 		mu:      new(sync.RWMutex),
 		cf:      cf,
 		stg:     stg,
@@ -96,7 +98,7 @@ func (e *Executor) Register(ctx context.Context, latitude string, rate uint64, c
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	e.ch[latitude] = make(chan Metrics, capacity)
+	e.ch[latitude] = make(chan engine.Metrics, capacity)
 	return e.cf.Set(ctx, latitude, rate)
 }
 
@@ -110,7 +112,7 @@ func (e *Executor) Unregister(ctx context.Context, latitude string) error {
 }
 
 // Notify the function to get the specified channel reported metrics.
-func (e *Executor) Notify(ctx context.Context, latitude string) (chan<- Metrics, error) {
+func (e *Executor) Notify(ctx context.Context, latitude string) (chan<- engine.Metrics, error) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 

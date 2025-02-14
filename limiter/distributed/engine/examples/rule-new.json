@@ -1,0 +1,16 @@
+{
+  "rules":[
+    {
+      "scope": "/order/v1",
+      "base_threshold":1000,
+      "min_threshold": 300,
+      "period": "1m",
+      "adjustment": {
+        "trigger": "error_rate > 50% && latency_p99 > 2s",
+        "action": "linear_decrease(base=30%, step=5%/min)",
+        "recovery": "gray_increase(start=10%, step=10/2m)",
+        "recoverTime": "1m"
+      }
+    }
+  ]
+}
