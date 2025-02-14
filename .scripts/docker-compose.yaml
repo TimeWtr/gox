@@ -1,0 +1,12 @@
+services:
+  redis:
+    image: redis:latest
+    container_name: rd
+    ports:
+      - "6379:6379"
+    environment:
+      - ROOT_PASSWORD="root"
+    volumes:
+      - ./data:/data
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
