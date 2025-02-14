@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package distributed
+package engine
 
 import (
 	"encoding/json"
@@ -20,8 +20,6 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-
-	"github.com/TimeWtr/gox/errorx"
 )
 
 const (
@@ -52,7 +50,7 @@ type Config struct {
 
 // Metrics handle
 // metrics tag and struct field cache.
-var metricsFiledMap = make(map[string]reflect.StructField)
+var metricsFieldMap = make(map[string]reflect.StructField)
 
 func init() {
 	tp := reflect.TypeOf(Metrics{})
@@ -64,14 +62,31 @@ func init() {
 		}
 
 		jsonName := strings.Split(jsonTag, ",")[0]
-		metricsFiledMap[jsonName] = f
+		metricsFieldMap[jsonName] = f
 	}
 }
 
-// _check the method to check ruleName.
-func _check(rules []Rule) error {
+// checker the total check method.
+func checker(cfg Config) error {
+	err := checkRuleName(cfg.Restrictions)
+	if err != nil {
+		return err
+	}
+
+	for _, rule := range cfg.Restrictions {
+		_, err = parseThreshold(rule.RuleName, rule.Threshold)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// checkRuleName the method to check ruleName.
+func checkRuleName(rules []Rule) error {
 	for _, rule := range rules {
-		_, ok := metricsFiledMap[rule.RuleName]
+		_, ok := metricsFieldMap[rule.RuleName]
 		if !ok {
 			return fmt.Errorf("rule `%s` not exists", rule.RuleName)
 		}
@@ -80,7 +95,8 @@ func _check(rules []Rule) error {
 	return nil
 }
 
-func _parseThreshold(threshold json.Number) (any, error) {
+// parseThreshold the method for parsing threshold numbers of type json.
+func parseThreshold(ruleName string, threshold json.Number) (any, error) {
 	if i, err := strconv.Atoi(threshold.String()); err == nil {
 		return i, nil
 	}
@@ -89,7 +105,8 @@ func _parseThreshold(threshold json.Number) (any, error) {
 		return f, nil
 	}
 
-	return nil, errorx.ErrThresholdType
+	return nil, fmt.Errorf("rule `%s` has invalid threshold `%s`, type should be int or float64",
+		ruleName, threshold.String())
 }
 
 type Metrics struct {

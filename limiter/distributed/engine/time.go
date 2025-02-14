@@ -12,22 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package distributed
+package engine
 
 import (
-	"context"
-	"testing"
-
-	"github.com/TimeWtr/gox/limiter/distributed/engine"
-
-	"github.com/stretchr/testify/assert"
+	"fmt"
+	"time"
 )
 
-func TestNewBS(t *testing.T) {
-	fs := engine.NewFileSource("./engine/examples/rule.yaml", engine.DataTypeYaml)
-	p, err := engine.NewParser(fs)
-	assert.Nil(t, err)
-	bs, err := NewBS(p)
-	assert.Nil(t, err)
-	bs.AdjustRate(context.Background(), engine.Metrics{})
+// parseTime the method to parse time duration for string value.
+func parseTime(t string) (time.Duration, error) {
+	d, err := time.ParseDuration(t)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse time: %w", err)
+	}
+
+	return d, nil
 }

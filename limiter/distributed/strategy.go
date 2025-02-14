@@ -16,13 +16,15 @@ package distributed
 
 import (
 	"context"
+
+	"github.com/TimeWtr/gox/limiter/distributed/engine"
 )
 
 // DecisionStrategy The decision-making strategy interface decides whether to dynamically
 // adjust the request rate limit based on the real-time incoming indicator data.
 type DecisionStrategy interface {
 	// AdjustRate Calculate and decide whether to adjust the request rate.
-	AdjustRate(ctx context.Context, metrics Metrics) Value
+	AdjustRate(ctx context.Context, metrics engine.Metrics) Value
 }
 
 type Value struct {
@@ -35,10 +37,10 @@ type Value struct {
 }
 
 type BS struct {
-	conf Config
+	conf engine.Config
 }
 
-func NewBS(p Parser) (DecisionStrategy, error) {
+func NewBS(p engine.Parser) (DecisionStrategy, error) {
 	cf, err := p.Parse()
 	if err != nil {
 		return nil, err
@@ -48,7 +50,7 @@ func NewBS(p Parser) (DecisionStrategy, error) {
 	}, nil
 }
 
-func (b *BS) AdjustRate(ctx context.Context, metrics Metrics) Value {
+func (b *BS) AdjustRate(ctx context.Context, metrics engine.Metrics) Value {
 	select {
 	case <-ctx.Done():
 		return Value{
@@ -60,7 +62,7 @@ func (b *BS) AdjustRate(ctx context.Context, metrics Metrics) Value {
 	return Value{}
 }
 
-func (b *BS) checker(metrics Metrics) (alarm bool, err error) {
+func (b *BS) checker(metrics engine.Metrics) (alarm bool, err error) {
 
 	return false, nil
 }

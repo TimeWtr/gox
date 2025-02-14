@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package distributed
+package engine
 
 import (
 	"testing"
@@ -21,10 +21,12 @@ import (
 )
 
 func TestRuleName_Not_Exists(t *testing.T) {
-	err := _check([]Rule{
-		{
-			RuleName:  "test",
-			Threshold: "1",
+	err := checker(Config{
+		Restrictions: []Rule{
+			{
+				RuleName:  "test",
+				Threshold: "1",
+			},
 		},
 	})
 	assert.NotNil(t, err)
