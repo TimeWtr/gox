@@ -12,23 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package engine
+package distributed
 
-import (
-	"testing"
-
-	"github.com/stretchr/testify/assert"
-)
-
-func TestRuleName_Not_Exists(t *testing.T) {
-	err := checker(Config{
-		Restrictions: []Rule{
-			{
-				//RuleName:  "test",
-				//Threshold: "1",
-			},
-		},
-	})
-	assert.NotNil(t, err)
-	t.Log(err)
+type Metrics interface {
 }
