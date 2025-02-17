@@ -22,16 +22,39 @@ import (
 	"strings"
 )
 
+// limiter level priority
+const (
+	LowPriority = iota + 1
+	MidPriority
+	HighPriority
+)
+
+// limiter scope prefix
+const (
+	// GlobalPrefixPattern global level
+	GlobalPrefixPattern = `^global$`
+	// ServicePrefixPattern ServicePrefix service level
+	ServicePrefixPattern = `^service:.*$`
+	// APIPrefixPattern api level
+	APIPrefixPattern = `^api:.*$`
+	// UserPrefixPattern user level
+	UserPrefixPattern = `^user:.*$`
+	// IPPrefixPattern ip level
+	IPPrefixPattern = `^ip:.*$`
+)
+
 const (
 	// ReduceAction decrease request rate.
 	ReduceAction = "decrease"
 )
 
 type Rule struct {
-	RuleName  string      `yaml:"ruleName" json:"ruleName" toml:"ruleName"`
-	Threshold json.Number `yaml:"threshold" json:"threshold" toml:"threshold"`
-	Action    string      `yaml:"action" json:"action" toml:"action"`
-	Amount    int         `yaml:"amount" json:"amount" toml:"amount"`
+	Scope         string      `yaml:"scope" json:"scope" toml:"scope"`
+	BaseThreshold json.Number `yaml:"base_threshold" json:"base_threshold" toml:"base_threshold"`
+	MinThreshold  json.Number `yaml:"min_threshold" json:"min_threshold" toml:"min_threshold"`
+	Period        json.Number `yaml:"period" json:"period" toml:"period"`
+	Action        string      `yaml:"action" json:"action" toml:"action"`
+	Amount        int         `yaml:"amount" json:"amount" toml:"amount"`
 }
 
 type GrayRecover struct {
@@ -40,8 +63,6 @@ type GrayRecover struct {
 }
 
 type Config struct {
-	// Rate the rate for request rate.
-	Rate int `yaml:"rate" json:"rate" toml:"rate"`
 	// Restrictions the conditions for executing current limiting.
 	Restrictions []Rule `yaml:"restrictions" json:"restrictions" toml:"restrictions"`
 	// GrayRecover Conditions for grayscale recovery request rate
@@ -74,7 +95,7 @@ func checker(cfg Config) error {
 	}
 
 	for _, rule := range cfg.Restrictions {
-		_, err = parseThreshold(rule.RuleName, rule.Threshold)
+		_, err = parseThreshold(rule.Scope, rule.BaseThreshold)
 		if err != nil {
 			return err
 		}
@@ -86,9 +107,9 @@ func checker(cfg Config) error {
 // checkRuleName the method to check ruleName.
 func checkRuleName(rules []Rule) error {
 	for _, rule := range rules {
-		_, ok := metricsFieldMap[rule.RuleName]
+		_, ok := metricsFieldMap[rule.Scope]
 		if !ok {
-			return fmt.Errorf("rule `%s` not exists", rule.RuleName)
+			return fmt.Errorf("rule `%s` not exists", rule.Scope)
 		}
 	}
 

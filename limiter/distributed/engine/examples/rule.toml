@@ -1,20 +1,21 @@
-rate = 1000
-
 [[restrictions]]
-ruleName = "cpu_usage"
-threshold = 80
+scope = "cpu_usage"
+min_threshold = 200
+base_threshold = 1000
 action = "decrease"
 amount = 20
 
 [[restrictions]]
-ruleName = "mem_usage"
-threshold = 80
+scope = "mem_usage"
+min_threshold = 200
+base_threshold = 1000
 action = "decrease"
 amount = 10
 
 [[restrictions]]
-ruleName = "request_latency"
-threshold = 200
+scope = "request_latency"
+min_threshold = 200
+base_threshold = 1000
 action = "decrease"
 amount = 15
 

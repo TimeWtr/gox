@@ -1,7 +1,7 @@
 {
   "rules":[
     {
-      "scope": "/order/v1",
+      "scope": "global",
       "base_threshold":1000,
       "min_threshold": 300,
       "period": "1m",
@@ -10,6 +10,15 @@
         "action": "linear_decrease(base=30%, step=5%/min)",
         "recovery": "gray_increase(start=10%, step=10/2m)",
         "recoverTime": "1m"
+      }
+    },
+    {
+      "scope": "service:order_service",
+      "base_threshold":1000,
+      "min_threshold": 300,
+      "period": "1m",
+      "trigger":{
+        
       }
     }
   ]

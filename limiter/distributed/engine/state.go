@@ -14,21 +14,27 @@
 
 package engine
 
-import (
-	"testing"
+// CircuitState the status for limiter.
+// if not limit, the status is StatusClosed.
+// if limited, the status is StatusOpen.
+// if limiter is recovering, the status is StatusRecover.
+type CircuitState int
 
-	"github.com/stretchr/testify/assert"
+const (
+	StatusClosed  CircuitState = iota // normal status
+	StatusOpen                        // limit status
+	StatusRecover                     // status recover
 )
 
-func TestRuleName_Not_Exists(t *testing.T) {
-	err := checker(Config{
-		Restrictions: []Rule{
-			{
-				//RuleName:  "test",
-				//Threshold: "1",
-			},
-		},
-	})
-	assert.NotNil(t, err)
-	t.Log(err)
+func (s CircuitState) String() string {
+	switch s {
+	case StatusClosed:
+		return "closed status"
+	case StatusOpen:
+		return "open status"
+	case StatusRecover:
+		return "recover status"
+	default:
+		return "unknown state"
+	}
 }
