@@ -1,25 +1,80 @@
 {
-  "rules":[
+  "base_threshold":1000,
+  "min_threshold": 300,
+  "strategy": "qps",
+  "period": "1s",
+  "priority": "high",
+  "rules": [
     {
-      "scope": "global",
+      "scope":{
+        "type": "service",
+        "value": "order_service"
+      },
       "base_threshold":1000,
       "min_threshold": 300,
-      "period": "1m",
-      "adjustment": {
-        "trigger": "error_rate > 50% && latency_p99 > 2s",
-        "action": "linear_decrease(base=30%, step=5%/min)",
-        "recovery": "gray_increase(start=10%, step=10/2m)",
-        "recoverTime": "1m"
-      }
-    },
-    {
-      "scope": "service:order_service",
-      "base_threshold":1000,
-      "min_threshold": 300,
-      "period": "1m",
-      "trigger":{
-        
-      }
+      "strategy": "qps",
+      "priority": "medium",
+      "period": "1s",
+      "trigger": [
+        {
+          "metric": "cpu_usage",
+          "threshold": 0.8
+        },
+        {
+          "metric": "mem_usage",
+          "threshold": 0.8
+        },
+        {
+          "metric": "err_rate",
+          "threshold": 0.2
+        }
+      ],
+      "children": [
+        {
+          "scope": {
+            "type": "api",
+            "value": "/api/v1/order"
+          },
+          "base_threshold": 500,
+          "min_threshold": 100,
+          "strategy": "concurrency",
+          "priority": "low",
+          "period": "1s"
+        },
+        {
+          "scope": {
+            "type": "api",
+            "value": "/api/v1/user"
+          },
+          "base_threshold": 300,
+          "min_threshold": 100,
+          "strategy": "qps",
+          "priority": "low",
+          "period": "1s",
+          "children": [
+            {
+              "scope": {
+                "type": "user",
+                "value": "*"
+              },
+              "base_threshold": 5,
+              "strategy": "total",
+              "priority": "low",
+              "period": "1m"
+            },
+            {
+              "scope": {
+                "type": "ip",
+                "value": "*"
+              },
+              "base_threshold": 5,
+              "priority": "low",
+              "strategy": "total",
+              "period": "1m"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
