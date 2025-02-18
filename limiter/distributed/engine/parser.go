@@ -16,6 +16,7 @@ package engine
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"time"
 
@@ -29,12 +30,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type ConfigSourceType string
+type ConfSourceType string
 
 const (
-	ConfigSourceTypeFile  ConfigSourceType = "file"
-	ConfigSourceTypeEtcd  ConfigSourceType = "etcd"
-	ConfigSourceTypeRedis ConfigSourceType = "redis"
+	ConfSourceTypeFile  ConfSourceType = "file"
+	ConfSourceTypeEtcd  ConfSourceType = "etcd"
+	ConfSourceTypeRedis ConfSourceType = "redis"
 )
 
 type DataType string
@@ -45,21 +46,21 @@ const (
 	DataTypeToml DataType = "toml"
 )
 
-// Parser the interface to parse rule config file.
+// Parser the interface to parse rule Conf file.
 type Parser interface {
-	// Parse the method to parse config metadata.
-	Parse() (Config, error)
+	// Parse the method to parse Conf metadata.
+	Parse() (Conf, error)
 }
 
-// ConfigSource the interface to adapt multi config source, such as
+// ConfSource the interface to adapt multi Conf source, such as
 // local file, etcd, nacos etc.
-type ConfigSource interface {
+type ConfSource interface {
 	Read() ([]byte, error)
-	SourceType() ConfigSourceType
+	SourceType() ConfSourceType
 	DataType() DataType
 }
 
-var _ ConfigSource = (*FileSource)(nil)
+var _ ConfSource = (*FileSource)(nil)
 
 // FileSource the rule metadata source based on file system.
 type FileSource struct {
@@ -67,7 +68,7 @@ type FileSource struct {
 	dataType DataType
 }
 
-func NewFileSource(filepath string, dataType DataType) ConfigSource {
+func NewFileSource(filepath string, dataType DataType) ConfSource {
 	return &FileSource{
 		filepath: filepath,
 		dataType: dataType,
@@ -83,8 +84,8 @@ func (f *FileSource) Read() ([]byte, error) {
 	return bs, nil
 }
 
-func (f *FileSource) SourceType() ConfigSourceType {
-	return ConfigSourceTypeFile
+func (f *FileSource) SourceType() ConfSourceType {
+	return ConfSourceTypeFile
 }
 
 func (f *FileSource) DataType() DataType {
@@ -98,7 +99,7 @@ type EtcdSource struct {
 	dataType DataType
 }
 
-func NewEtcdSource(client *clientv3.Client, key string, dataType DataType) ConfigSource {
+func NewEtcdSource(client *clientv3.Client, key string, dataType DataType) ConfSource {
 	return &EtcdSource{
 		client:   client,
 		key:      key,
@@ -116,14 +117,14 @@ func (e *EtcdSource) Read() ([]byte, error) {
 	}
 
 	if len(resp.Kvs) == 0 {
-		return nil, errorx.ErrConfigNotExists
+		return nil, fmt.Errorf("etcd key not found")
 	}
 
 	return resp.Kvs[0].Value, nil
 }
 
-func (e *EtcdSource) SourceType() ConfigSourceType {
-	return ConfigSourceTypeEtcd
+func (e *EtcdSource) SourceType() ConfSourceType {
+	return ConfSourceTypeEtcd
 }
 
 func (e *EtcdSource) DataType() DataType {
@@ -139,7 +140,7 @@ type RedisSource struct {
 	dataType DataType
 }
 
-func NewRedisSource(client redis.Cmdable, key string, dataType DataType) ConfigSource {
+func NewRedisSource(client redis.Cmdable, key string, dataType DataType) ConfSource {
 	return &RedisSource{
 		client:   client,
 		key:      key,
@@ -159,8 +160,8 @@ func (r *RedisSource) Read() ([]byte, error) {
 	return []byte(res), nil
 }
 
-func (r *RedisSource) SourceType() ConfigSourceType {
-	return ConfigSourceTypeRedis
+func (r *RedisSource) SourceType() ConfSourceType {
+	return ConfSourceTypeRedis
 }
 
 func (r *RedisSource) DataType() DataType {
@@ -168,7 +169,7 @@ func (r *RedisSource) DataType() DataType {
 }
 
 // NewParser the parser initialize method.
-func NewParser(cs ConfigSource) (Parser, error) {
+func NewParser(cs ConfSource) (Parser, error) {
 	bs, err := cs.Read()
 	if err != nil {
 		return nil, err
@@ -197,14 +198,14 @@ func NewYamlParser(bs []byte) Parser {
 	}
 }
 
-func (y *YamlParser) Parse() (Config, error) {
-	var cfg Config
+func (y *YamlParser) Parse() (Conf, error) {
+	var cfg Conf
 	err := yaml.Unmarshal(y.bs, &cfg)
 	if err != nil {
-		return Config{}, err
+		return Conf{}, err
 	}
 
-	return cfg, checker(cfg)
+	return cfg, cfg.Check()
 }
 
 // JsonParser json parser to parse json type data.
@@ -218,14 +219,14 @@ func NewJsonParser(bs []byte) Parser {
 	}
 }
 
-func (j *JsonParser) Parse() (Config, error) {
-	var cfg Config
+func (j *JsonParser) Parse() (Conf, error) {
+	var cfg Conf
 	err := json.Unmarshal(j.bs, &cfg)
 	if err != nil {
-		return Config{}, err
+		return Conf{}, err
 	}
 
-	return cfg, checker(cfg)
+	return cfg, cfg.Check()
 }
 
 // TomlParser toml parser to parse toml type data.
@@ -239,12 +240,12 @@ func NewTomlParser(bs []byte) Parser {
 	}
 }
 
-func (t *TomlParser) Parse() (Config, error) {
-	var cfg Config
+func (t *TomlParser) Parse() (Conf, error) {
+	var cfg Conf
 	err := toml.Unmarshal(t.bs, &cfg)
 	if err != nil {
-		return Config{}, err
+		return Conf{}, err
 	}
 
-	return cfg, checker(cfg)
+	return cfg, cfg.Check()
 }

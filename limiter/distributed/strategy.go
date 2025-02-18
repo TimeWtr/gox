@@ -37,7 +37,7 @@ type Value struct {
 }
 
 type BS struct {
-	conf engine.Config
+	conf engine.Conf
 }
 
 func NewBS(p engine.Parser) (DecisionStrategy, error) {

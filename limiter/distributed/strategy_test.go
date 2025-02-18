@@ -24,7 +24,7 @@ import (
 )
 
 func TestNewBS(t *testing.T) {
-	fs := engine.NewFileSource("./engine/examples/rule.yaml", engine.DataTypeYaml)
+	fs := engine.NewFileSource("./engine/examples/rule-new.json", engine.DataTypeYaml)
 	p, err := engine.NewParser(fs)
 	assert.Nil(t, err)
 	bs, err := NewBS(p)

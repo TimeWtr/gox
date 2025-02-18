@@ -31,5 +31,4 @@ var (
 	ErrMetricsChannelNotExists = errors.New("metrics channel not exists")
 	ErrDelConfig               = errors.New("delete rate config error")
 	ErrFileType                = errors.New("unsupported file type")
-	ErrConfigNotExists         = errors.New("config metadata not exists")
 )

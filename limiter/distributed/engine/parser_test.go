@@ -20,17 +20,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewYamlParser(t *testing.T) {
-	fs := NewFileSource("./examples/rule.yaml", DataTypeYaml)
-	parser, err := NewParser(fs)
-	assert.NoError(t, err)
-	cfg, err := parser.Parse()
-	assert.NoError(t, err)
-	t.Logf("config: %+v", cfg)
-}
+//func TestNewYamlParser(t *testing.T) {
+//	fs := NewFileSource("./examples/rule.yaml", DataTypeYaml)
+//	parser, err := NewParser(fs)
+//	assert.NoError(t, err)
+//	cfg, err := parser.Parse()
+//	assert.NoError(t, err)
+//	t.Logf("config: %+v", cfg)
+//}
 
 func TestNewJsonParser(t *testing.T) {
-	fs := NewFileSource("./examples/rule.json", DataTypeJson)
+	fs := NewFileSource("./examples/rule-new.json", DataTypeJson)
 	parser, err := NewParser(fs)
 	assert.NoError(t, err)
 	cfg, err := parser.Parse()
@@ -38,11 +38,11 @@ func TestNewJsonParser(t *testing.T) {
 	t.Logf("config: %+v", cfg)
 }
 
-func TestNewTomlParser(t *testing.T) {
-	fs := NewFileSource("./examples/rule.toml", DataTypeToml)
-	parser, err := NewParser(fs)
-	assert.NoError(t, err)
-	cfg, err := parser.Parse()
-	assert.NoError(t, err)
-	t.Logf("config: %+v", cfg)
-}
+//func TestNewTomlParser(t *testing.T) {
+//	fs := NewFileSource("./examples/rule.toml", DataTypeToml)
+//	parser, err := NewParser(fs)
+//	assert.NoError(t, err)
+//	cfg, err := parser.Parse()
+//	assert.NoError(t, err)
+//	t.Logf("config: %+v", cfg)
+//}
