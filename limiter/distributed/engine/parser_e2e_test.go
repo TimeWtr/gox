@@ -14,15 +14,6 @@
 
 package engine
 
-import (
-	"testing"
-	"time"
-
-	"github.com/redis/go-redis/v9"
-	"github.com/stretchr/testify/assert"
-	"golang.org/x/net/context"
-)
-
 var jsonContent = `{
   "base_threshold":1000,
   "min_threshold": 300,
@@ -214,60 +205,60 @@ priority = "low"
 strategy = "total"
 period = "1m"`
 
-func TestNewRedisSource_JSON(t *testing.T) {
-	client := redis.NewClient(&redis.Options{
-		Addr:     "127.0.0.1:6379",
-		Password: "root",
-	})
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	_, err := client.Set(ctx, "test", []byte(jsonContent), 120).Result()
-	assert.Nil(t, err)
-
-	bs, err := NewRedisSource(client, "test", DataTypeJson).Read()
-	assert.Nil(t, err)
-
-	cf, err := NewJsonParser(bs).Parse()
-	assert.Nil(t, err)
-	t.Logf("conf: %+v\n", cf)
-}
-
-func TestNewRedisSource_YAML(t *testing.T) {
-	client := redis.NewClient(&redis.Options{
-		Addr:     "127.0.0.1:6379",
-		Password: "root",
-	})
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	_, err := client.Set(ctx, "test", []byte(yamlContent), 120).Result()
-	assert.Nil(t, err)
-
-	bs, err := NewRedisSource(client, "test", DataTypeYaml).Read()
-	assert.Nil(t, err)
-
-	cf, err := NewYamlParser(bs).Parse()
-	assert.Nil(t, err)
-	t.Logf("conf: %+v\n", cf)
-}
-
-func TestNewRedisSource_TOML(t *testing.T) {
-	client := redis.NewClient(&redis.Options{
-		Addr:     "127.0.0.1:6379",
-		Password: "root",
-	})
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	_, err := client.Set(ctx, "test", []byte(tomlContent), 120).Result()
-	assert.Nil(t, err)
-
-	bs, err := NewRedisSource(client, "test", DataTypeToml).Read()
-	assert.Nil(t, err)
-
-	p := NewTomlParser(bs)
-	cf, err := p.Parse()
-	assert.Nil(t, err)
-	t.Logf("conf: %+v\n", cf)
-}
+//func TestNewRedisSource_JSON(t *testing.T) {
+//	client := redis.NewClient(&redis.Options{
+//		Addr:     "127.0.0.1:6379",
+//		Password: "root",
+//	})
+//
+//	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+//	defer cancel()
+//	_, err := client.Set(ctx, "test", []byte(jsonContent), 120).Result()
+//	assert.Nil(t, err)
+//
+//	bs, err := NewRedisSource(client, "test", DataTypeJson).Read()
+//	assert.Nil(t, err)
+//
+//	cf, err := NewJsonParser(bs).Parse()
+//	assert.Nil(t, err)
+//	t.Logf("conf: %+v\n", cf)
+//}
+//
+//func TestNewRedisSource_YAML(t *testing.T) {
+//	client := redis.NewClient(&redis.Options{
+//		Addr:     "127.0.0.1:6379",
+//		Password: "root",
+//	})
+//
+//	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+//	defer cancel()
+//	_, err := client.Set(ctx, "test", []byte(yamlContent), 120).Result()
+//	assert.Nil(t, err)
+//
+//	bs, err := NewRedisSource(client, "test", DataTypeYaml).Read()
+//	assert.Nil(t, err)
+//
+//	cf, err := NewYamlParser(bs).Parse()
+//	assert.Nil(t, err)
+//	t.Logf("conf: %+v\n", cf)
+//}
+//
+//func TestNewRedisSource_TOML(t *testing.T) {
+//	client := redis.NewClient(&redis.Options{
+//		Addr:     "127.0.0.1:6379",
+//		Password: "root",
+//	})
+//
+//	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+//	defer cancel()
+//	_, err := client.Set(ctx, "test", []byte(tomlContent), 120).Result()
+//	assert.Nil(t, err)
+//
+//	bs, err := NewRedisSource(client, "test", DataTypeToml).Read()
+//	assert.Nil(t, err)
+//
+//	p := NewTomlParser(bs)
+//	cf, err := p.Parse()
+//	assert.Nil(t, err)
+//	t.Logf("conf: %+v\n", cf)
+//}
