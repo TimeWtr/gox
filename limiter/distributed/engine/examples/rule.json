@@ -1,36 +1,93 @@
 {
-  "restrictions": [
-    {
-      "scope": "cpu_usage",
-      "min_threshold": 10,
-      "base_threshold": 80,
-      "action": "decrease",
-      "amount": 20
-    },
-    {
-      "scope": "mem_usage",
-      "min_threshold": 10,
-      "base_threshold": 80,
-      "action": "decrease",
-      "amount": 10
-    },
-    {
-      "scope": "request_latency",
-      "min_threshold": 10,
-      "base_threshold": 80,
-      "action": "decrease",
-      "amount": 15
-    },
-    {
-      "scope": "err_rate",
-      "min_threshold": 10,
-      "base_threshold": 80,
-      "action": "decrease",
-      "amount": 10
+  "redis_store": {
+    "addr": [
+      "http://127.0.0.1:8081",
+      "http://127.0.0.1:8082",
+      "http://127.0.0.1:8083"
+    ],
+    "enableCluster": true,
+    "shard": {
+      "enableSharding": true,
+      "shardingNumber": 5,
+      "shardingAlgorithm": ""
     }
-  ],
-  "grayRecover": {
-    "grayScale": 0.1,
-    "recoverTime": 60
-  }
+  },
+  "base_threshold":1000,
+  "min_threshold": 300,
+  "strategy": "qps",
+  "period": "1s",
+  "priority": "high",
+  "rules": [
+    {
+      "scope":{
+        "type": "service",
+        "value": "order_service"
+      },
+      "base_threshold":1000,
+      "min_threshold": 300,
+      "strategy": "qps",
+      "priority": "medium",
+      "period": "1s",
+      "trigger": [
+        {
+          "metric": "cpu_usage",
+          "threshold": 0.8
+        },
+        {
+          "metric": "mem_usage",
+          "threshold": 0.8
+        },
+        {
+          "metric": "err_rate",
+          "threshold": 0.2
+        }
+      ],
+      "children": [
+        {
+          "scope": {
+            "type": "api",
+            "value": "/api/v1/order"
+          },
+          "base_threshold": 500,
+          "min_threshold": 100,
+          "strategy": "concurrency",
+          "priority": "low",
+          "period": "1s"
+        },
+        {
+          "scope": {
+            "type": "api",
+            "value": "/api/v1/user"
+          },
+          "base_threshold": 300,
+          "min_threshold": 100,
+          "strategy": "qps",
+          "priority": "low",
+          "period": "1s",
+          "children": [
+            {
+              "scope": {
+                "type": "user",
+                "value": "*"
+              },
+              "base_threshold": 5,
+              "strategy": "total",
+              "priority": "low",
+              "period": "1m"
+            },
+            {
+              "scope": {
+                "type": "ip",
+                "value": "*"
+              },
+              "base_threshold": 5,
+              "priority": "low",
+              "strategy": "total",
+              "period": "1m"
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }

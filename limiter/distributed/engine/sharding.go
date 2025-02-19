@@ -12,22 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package distributed
+package engine
 
-import (
-	"context"
-	"testing"
+// Sharding the interface to shard key.
+type Sharding interface {
+	// Shard the method to calculate shard key.
+	// key is the string needed to calculate.
+	// return the shard index, such as redis cluster path.
+	Shard(key string) int
+}
 
-	"github.com/TimeWtr/gox/limiter/distributed/engine"
+type Hash struct {
+	// shards number.
+	num int
+}
 
-	"github.com/stretchr/testify/assert"
-)
+func NewHash(num int) *Hash {
+	return &Hash{num: num}
+}
 
-func TestNewBS(t *testing.T) {
-	fs := engine.NewFileSource("./engine/examples/rule.json", engine.DataTypeYaml)
-	p, err := engine.NewParser(fs)
-	assert.Nil(t, err)
-	bs, err := NewBS(p)
-	assert.Nil(t, err)
-	bs.AdjustRate(context.Background(), engine.Metrics{})
+func (h *Hash) Shard(key string) int {
+	return 0
 }

@@ -53,7 +53,7 @@ type Parser interface {
 }
 
 // ConfSource the interface to adapt multi Conf source, such as
-// local file, etcd, nacos etc.
+// local file, Etcd, Nacos etc.
 type ConfSource interface {
 	Read() ([]byte, error)
 	SourceType() ConfSourceType

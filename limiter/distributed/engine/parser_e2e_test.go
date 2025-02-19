@@ -15,81 +15,195 @@
 package engine
 
 var jsonContent = `{
-  "rate": 1000,
-  "restrictions": [
+  "base_threshold":1000,
+  "min_threshold": 300,
+  "strategy": "qps",
+  "period": "1s",
+  "priority": "high",
+  "rules": [
     {
-      "ruleName": "cpu_usage",
-      "threshold": 80,
-      "action": "decrease",
-      "amount": 20
-    },
-    {
-      "ruleName": "mem_usage",
-      "threshold": 80,
-      "action": "decrease",
-      "amount": 10
-    },
-    {
-      "ruleName": "request_latency",
-      "threshold": 200,
-      "action": "decrease",
-      "amount": 15
-    },
-    {
-      "ruleName": "err_rate",
-      "threshold": 0.1,
-      "action": "decrease",
-      "amount": 10
+      "scope":{
+        "type": "service",
+        "value": "order_service"
+      },
+      "base_threshold":1000,
+      "min_threshold": 300,
+      "strategy": "qps",
+      "priority": "medium",
+      "period": "1s",
+      "trigger": [
+        {
+          "metric": "cpu_usage",
+          "threshold": 0.8
+        },
+        {
+          "metric": "mem_usage",
+          "threshold": 0.8
+        },
+        {
+          "metric": "err_rate",
+          "threshold": 0.2
+        }
+      ],
+      "children": [
+        {
+          "scope": {
+            "type": "api",
+            "value": "/api/v1/order"
+          },
+          "base_threshold": 500,
+          "min_threshold": 100,
+          "strategy": "concurrency",
+          "priority": "low",
+          "period": "1s"
+        },
+        {
+          "scope": {
+            "type": "api",
+            "value": "/api/v1/user"
+          },
+          "base_threshold": 300,
+          "min_threshold": 100,
+          "strategy": "qps",
+          "priority": "low",
+          "period": "1s",
+          "children": [
+            {
+              "scope": {
+                "type": "user",
+                "value": "*"
+              },
+              "base_threshold": 5,
+              "strategy": "total",
+              "priority": "low",
+              "period": "1m"
+            },
+            {
+              "scope": {
+                "type": "ip",
+                "value": "*"
+              },
+              "base_threshold": 5,
+              "priority": "low",
+              "strategy": "total",
+              "period": "1m"
+            }
+          ]
+        }
+      ]
     }
-  ],
-  "grayRecover": {
-    "grayScale": 0.1,
-    "recoverTime": 60
-  }
+  ]
 }
 `
 
-var yamlContent = `"rate": 1000
-"restrictions":
-  - "ruleName": "cpu_usage"
-    "threshold": 80
-    "action": "decrease"
-    "amount": 20
-  - "ruleName": "mem_usage"
-    "threshold": 85
-    "action": "decrease"
-    "amount": 10
-  - "ruleName": "request_latency"
-    "threshold": 200
-    "action": "decrease"
-    "amount": 15
-"grayRecover":
-  "grayScale": 0.1
-  "recoverTime": 60`
+var yamlContent = `base_threshold: 1000
+min_threshold: 300
+strategy: qps
+period: 1s
+priority: high
+rules:
+  - scope:
+      type: service
+      value: order_service
+    base_threshold: 1000
+    min_threshold: 300
+    strategy: qps
+    priority: medium
+    period: 1s
+    trigger:
+      - metric: cpu_usage
+        threshold: 0.8
+      - metric: mem_usage
+        threshold: 0.8
+      - metric: err_rate
+        threshold: 0.2
+    children:
+      - scope:
+          type: api
+          value: /api/v1/order
+        base_threshold: 500
+        min_threshold: 100
+        strategy: concurrency
+        priority: low
+        period: 1s
+      - scope:
+          type: api
+          value: /api/v1/user
+        base_threshold: 300
+        min_threshold: 100
+        strategy: qps
+        priority: low
+        period: 1s
+        children:
+          - scope:
+              type: user
+              value: "*"
+            base_threshold: 5
+            strategy: total
+            priority: low
+            period: 1m
+          - scope:
+              type: ip
+              value: "*"
+            base_threshold: 5
+            priority: low
+            strategy: total
+            period: 1m`
 
-var tomlContent = `rate = 1000
+var tomlContent = `base_threshold = 1000
+min_threshold = 300
+strategy = "qps"
+period = "1s"
+priority = "high"
+[[rules]]
+scope = { type = "service", value = "order_service" }
+base_threshold = 1000
+min_threshold = 300
+strategy = "qps"
+priority = "medium"
+period = "1s"
 
-[[restrictions]]
-ruleName = "cpu_usage"
-threshold = 80
-action = "decrease"
-amount = 20
+[[rules.trigger]]
+metric = "cpu_usage"
+threshold = 0.8
 
-[[restrictions]]
-ruleName = "mem_usage"
-threshold = 80
-action = "decrease"
-amount = 10
+[[rules.trigger]]
+metric = "mem_usage"
+threshold = 0.8
 
-[[restrictions]]
-ruleName = "request_latency"
-threshold = 200
-action = "decrease"
-amount = 15
+[[rules.trigger]]
+metric = "err_rate"
+threshold = 0.2
 
-[grayRecover]
-grayScale = 0.1
-recoverTime = 60`
+[[rules.children]]
+scope = { type = "api", value = "/api/v1/order" }
+base_threshold = 500
+min_threshold = 100
+strategy = "concurrency"
+priority = "low"
+period = "1s"
+
+[[rules.children]]
+scope = { type = "api", value = "/api/v1/user" }
+base_threshold = 300
+min_threshold = 100
+strategy = "qps"
+priority = "low"
+period = "1s"
+
+[[rules.children.children]]
+scope = { type = "user", value = "*" }
+base_threshold = 5
+strategy = "total"
+priority = "low"
+period = "1m"
+
+[[rules.children.children]]
+scope = { type = "ip", value = "*" }
+base_threshold = 5
+priority = "low"
+strategy = "total"
+period = "1m"`
 
 //func TestNewRedisSource_JSON(t *testing.T) {
 //	client := redis.NewClient(&redis.Options{
@@ -104,7 +218,10 @@ recoverTime = 60`
 //
 //	bs, err := NewRedisSource(client, "test", DataTypeJson).Read()
 //	assert.Nil(t, err)
-//	t.Log(string(bs))
+//
+//	cf, err := NewJsonParser(bs).Parse()
+//	assert.Nil(t, err)
+//	t.Logf("conf: %+v\n", cf)
 //}
 //
 //func TestNewRedisSource_YAML(t *testing.T) {
@@ -120,7 +237,10 @@ recoverTime = 60`
 //
 //	bs, err := NewRedisSource(client, "test", DataTypeYaml).Read()
 //	assert.Nil(t, err)
-//	t.Log(string(bs))
+//
+//	cf, err := NewYamlParser(bs).Parse()
+//	assert.Nil(t, err)
+//	t.Logf("conf: %+v\n", cf)
 //}
 //
 //func TestNewRedisSource_TOML(t *testing.T) {
@@ -136,5 +256,9 @@ recoverTime = 60`
 //
 //	bs, err := NewRedisSource(client, "test", DataTypeToml).Read()
 //	assert.Nil(t, err)
-//	t.Log(string(bs))
+//
+//	p := NewTomlParser(bs)
+//	cf, err := p.Parse()
+//	assert.Nil(t, err)
+//	t.Logf("conf: %+v\n", cf)
 //}

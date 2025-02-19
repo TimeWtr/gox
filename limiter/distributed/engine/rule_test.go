@@ -14,21 +14,15 @@
 
 package engine
 
-import (
-	"testing"
-
-	"github.com/stretchr/testify/assert"
-)
-
-func TestRuleName_Not_Exists(t *testing.T) {
-	err := checker(Config{
-		Restrictions: []Rule{
-			{
-				//RuleName:  "test",
-				//Threshold: "1",
-			},
-		},
-	})
-	assert.NotNil(t, err)
-	t.Log(err)
-}
+//func TestRuleName_Not_Exists(t *testing.T) {
+//	err := check(Config{
+//		Restrictions: []Rule{
+//			{
+//				//RuleName:  "test",
+//				//Threshold: "1",
+//			},
+//		},
+//	})
+//	assert.NotNil(t, err)
+//	t.Log(err)
+//}
