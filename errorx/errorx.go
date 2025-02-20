@@ -32,3 +32,7 @@ var (
 	ErrDelConfig               = errors.New("delete rate config error")
 	ErrFileType                = errors.New("unsupported file type")
 )
+
+var (
+	ErrEmptyNode = errors.New("empty node")
+)
