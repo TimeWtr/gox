@@ -156,6 +156,7 @@ type Rule2 struct {
 	Period        PeriodType    `json:"period" yaml:"period" toml:"period"`
 	Priority      PriorityType  `json:"priority" yaml:"priority" toml:"priority"`
 	Trigger       []TriggerItem `json:"trigger" yaml:"trigger" toml:"trigger"`
+	Algorithm     AlgorithmType `json:"algorithm" yaml:"algorithm" toml:"algorithm"`
 	Children      []Rule2       `json:"children" yaml:"children" toml:"children"`
 }
 
@@ -182,6 +183,17 @@ func (r *Rule2) check() error {
 	err = r.Priority.valid()
 	if err != nil {
 		return err
+	}
+
+	// check algorithm value valid
+	if r.Scope.Value == ScopeTypeUser || r.Scope.Value == ScopeTypeIP {
+		if err = r.Algorithm.Valid(r.Scope.Value); err != nil {
+			return err
+		}
+	} else {
+		if err = r.Algorithm.Valid(); err != nil {
+			return err
+		}
 	}
 
 	// check limit trigger

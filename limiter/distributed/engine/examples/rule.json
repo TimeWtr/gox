@@ -1,16 +1,10 @@
 {
-  "redis_store": {
+  "redis_cluster": {
     "addr": [
       "http://127.0.0.1:8081",
       "http://127.0.0.1:8082",
       "http://127.0.0.1:8083"
-    ],
-    "enableCluster": true,
-    "shard": {
-      "enableSharding": true,
-      "shardingNumber": 5,
-      "shardingAlgorithm": ""
-    }
+    ]
   },
   "base_threshold":1000,
   "min_threshold": 300,
@@ -73,7 +67,8 @@
               "base_threshold": 5,
               "strategy": "total",
               "priority": "low",
-              "period": "1m"
+              "period": "1m",
+              "algorithm": "TokenBucket"
             },
             {
               "scope": {
@@ -83,7 +78,8 @@
               "base_threshold": 5,
               "priority": "low",
               "strategy": "total",
-              "period": "1m"
+              "period": "1m",
+              "algorithm": "SlidingWindow"
             }
           ]
         }
