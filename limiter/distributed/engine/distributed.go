@@ -12,16 +12,55 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package distributed
+package engine
 
 import (
 	"context"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/TimeWtr/gox/limiter"
 
 	"github.com/redis/go-redis/v9"
 )
+
+type AlgorithmType string
+
+const (
+	AlgorithmTypeTokenBucket   AlgorithmType = "TokenBucket"
+	AlgorithmTypeLeakBucket                  = "LeakBucket"
+	AlgorithmTypeFixedWindow                 = "FixedWindow"
+	AlgorithmTypeSlidingWindow               = "SlidingWindow"
+)
+
+func (a *AlgorithmType) String() string {
+	return string(*a)
+}
+
+func (a *AlgorithmType) Valid(latitude ...string) error {
+	if *a == "" {
+		return nil
+	}
+
+	// latitude is Global，API and Service
+	if len(latitude) == 0 || (latitude[0] != ScopeTypeUser && latitude[0] != ScopeTypeIP) {
+		switch *a {
+		case AlgorithmTypeTokenBucket, AlgorithmTypeLeakBucket, AlgorithmTypeFixedWindow, AlgorithmTypeSlidingWindow:
+			return nil
+		default:
+			return errors.New("Invalid Algorithm Type")
+		}
+	}
+
+	// latitude is User or IP
+	switch *a {
+	case AlgorithmTypeTokenBucket, AlgorithmTypeSlidingWindow:
+		return nil
+	default:
+		return errors.New("Latitude is User or IP, Algorithm must be one of TokenBucket, LeakBucket, FixedWindow, SlidingWindow")
+	}
+}
 
 var _ limiter.DisLimiter = (*DSlidingWindow)(nil)
 
@@ -42,7 +81,7 @@ func NewDSlidingWindow(client redis.Cmdable) limiter.DisLimiter {
 	}
 }
 
-func (d *DSlidingWindow) Allow(ctx context.Context, latitude string) (bool, error) {
+func (d *DSlidingWindow) Allow(ctx context.Context, key ...string) (bool, error) {
 
 	return true, nil
 }

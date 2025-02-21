@@ -28,7 +28,9 @@ type Limiter interface {
 
 type DisLimiter interface {
 	// Allow To determine whether to allow the request to be processed
-	Allow(ctx context.Context, latitude string) (bool, error)
+	// ctx context.Context
+	// key is required if latitude is IP or User.
+	Allow(ctx context.Context, key ...string) (bool, error)
 	// Close send signal to close the limiter
 	Close()
 }
