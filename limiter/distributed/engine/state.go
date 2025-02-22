@@ -14,6 +14,11 @@
 
 package engine
 
+import (
+	"sync"
+	"time"
+)
+
 // CircuitState the status for limiter.
 // if not limit, the status is StatusClosed.
 // if limited, the status is StatusOpen.
@@ -21,20 +26,52 @@ package engine
 type CircuitState int
 
 const (
-	StatusClosed  CircuitState = iota // normal status
-	StatusOpen                        // limit status
-	StatusRecover                     // status recover
+	StatusNormal     CircuitState = iota // normal status, default status
+	StatusThrottling                     // limit status
+	StatusRecovering                     // status recover
 )
 
 func (s CircuitState) String() string {
 	switch s {
-	case StatusClosed:
-		return "closed status"
-	case StatusOpen:
-		return "open status"
-	case StatusRecover:
-		return "recover status"
+	case StatusNormal:
+		return "normal status"
+	case StatusThrottling:
+		return "throttling status"
+	case StatusRecovering:
+		return "recovering status"
 	default:
 		return "unknown state"
 	}
+}
+
+var once *sync.Once
+
+type LimitStatus struct {
+	// limit current status
+	state CircuitState
+	// limit time
+	throttleSince time.Time
+	// recover steps, item is time duration
+	recoverSteps []int
+	// current step
+	currentStep int
+	// When the grayscale is restored, if the threshold exceeds the threshold,
+	// is it allowed to go back to the previous step
+	rollback bool
+	// locker
+	mu *sync.RWMutex
+}
+
+func NewLimitStatus(rollback bool, recoverSteps []int) *LimitStatus {
+	ls := &LimitStatus{}
+	once.Do(func() {
+		ls = &LimitStatus{
+			state:        StatusNormal,
+			recoverSteps: recoverSteps,
+			rollback:     rollback,
+			mu:           new(sync.RWMutex),
+		}
+	})
+
+	return ls
 }
