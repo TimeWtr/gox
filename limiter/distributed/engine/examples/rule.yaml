@@ -12,13 +12,7 @@ rules:
     strategy: qps
     priority: medium
     period: 1s
-    trigger:
-      - metric: cpu_usage
-        threshold: 0.8
-      - metric: mem_usage
-        threshold: 0.8
-      - metric: err_rate
-        threshold: 0.2
+    trigger: cpu_usage > 0.8 OR mem_usage > 0.8 OR err_rate > 0.2
     children:
       - scope:
           type: api
