@@ -15,7 +15,6 @@
 package engine
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -86,7 +85,7 @@ func (s *StrategyType) valid() error {
 	case StrategyQPS, StrategyConcurrency, StrategyTotal:
 		return nil
 	default:
-		return errors.New("invalid strategy")
+		return fmt.Errorf("strategy type %s not valid", s.String())
 	}
 }
 
@@ -155,7 +154,7 @@ type Rule2 struct {
 	Strategy      StrategyType  `json:"strategy" yaml:"strategy" toml:"strategy"`
 	Period        PeriodType    `json:"period" yaml:"period" toml:"period"`
 	Priority      PriorityType  `json:"priority" yaml:"priority" toml:"priority"`
-	Trigger       []TriggerItem `json:"trigger" yaml:"trigger" toml:"trigger"`
+	Trigger       TriggerType   `json:"trigger" yaml:"trigger" toml:"trigger"`
 	Algorithm     AlgorithmType `json:"algorithm" yaml:"algorithm" toml:"algorithm"`
 	Children      []Rule2       `json:"children" yaml:"children" toml:"children"`
 }
@@ -198,11 +197,14 @@ func (r *Rule2) check() error {
 
 	// check limit trigger
 	if len(r.Trigger) != 0 {
-		for _, t := range r.Trigger {
-			err = t.valid()
-			if err != nil {
-				return err
-			}
+		//for _, t := range r.Trigger {
+		//	err = t.valid()
+		//	if err != nil {
+		//		return err
+		//	}
+		//}
+		if err = r.Trigger.valid(); err != nil {
+			return err
 		}
 	}
 
@@ -250,17 +252,19 @@ func (s *Scope) valid() error {
 	return nil
 }
 
-type TriggerItem struct {
-	Metric    string      `json:"metric" yaml:"metric" toml:"metric"`
-	Threshold json.Number `json:"threshold" yaml:"threshold" toml:"threshold"`
-}
+//type TriggerItem struct {
+//	Metric    string      `json:"metric" yaml:"metric" toml:"metric"`
+//	Threshold json.Number `json:"threshold" yaml:"threshold" toml:"threshold"`
+//}
 
-func (t *TriggerItem) valid() error {
-	_, ok := metricsMap[t.Metric]
-	if !ok {
-		return fmt.Errorf("metric `%s` is not supported", t.Metric)
-	}
+type TriggerType string
 
+func (t *TriggerType) valid() error {
+	//_, ok := metricsMap[t.Metric]
+	//if !ok {
+	//	return fmt.Errorf("metric `%s` is not supported", t.Metric)
+	//}
+	//
 	return nil
 }
 

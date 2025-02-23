@@ -3,6 +3,7 @@ min_threshold = 300
 strategy = "qps"
 period = "1s"
 priority = "high"
+
 [[rules]]
 scope = { type = "service", value = "order_service" }
 base_threshold = 1000
@@ -10,18 +11,7 @@ min_threshold = 300
 strategy = "qps"
 priority = "medium"
 period = "1s"
-
-[[rules.trigger]]
-metric = "cpu_usage"
-threshold = 0.8
-
-[[rules.trigger]]
-metric = "mem_usage"
-threshold = 0.8
-
-[[rules.trigger]]
-metric = "err_rate"
-threshold = 0.2
+trigger = "cpu_usage > 0.8 OR mem_usage > 0.8 OR err_rate > 0.2"
 
 [[rules.children]]
 scope = { type = "api", value = "/api/v1/order" }
@@ -45,6 +35,7 @@ base_threshold = 5
 strategy = "total"
 priority = "low"
 period = "1m"
+algorithm = "TokenBucket"
 
 [[rules.children.children]]
 scope = { type = "ip", value = "*" }
@@ -52,3 +43,11 @@ base_threshold = 5
 priority = "low"
 strategy = "total"
 period = "1m"
+algorithm = "SlidingWindow"
+
+[redis_cluster]
+addr = [
+    "http://127.0.0.1:8081",
+    "http://127.0.0.1:8082",
+    "http://127.0.0.1:8083"
+]
