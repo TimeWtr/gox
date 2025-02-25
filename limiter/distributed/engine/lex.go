@@ -20,6 +20,13 @@ import (
 	"unicode"
 )
 
+const (
+	LogicAnd      = "and"
+	LogicUpperAnd = "AND"
+	LogicOr       = "or"
+	LogicUpperOr  = "OR"
+)
+
 type TokenType int
 
 const (
@@ -44,55 +51,115 @@ func Lex(content string) ([]Token, error) {
 		ch := rune(content[pos])
 		switch {
 		case unicode.IsSpace(ch):
-			// token is space
+			// space content, include
 			pos++
+			continue
 		case ch == '(':
-			// token is left bracket
-			tokens = append(tokens, Token{Tp: TokenLParen, Value: "("})
+			tokens = append(tokens, Token{TokenLParen, string(ch)})
 			pos++
 		case ch == ')':
-			// token is right bracket
-			tokens = append(tokens, Token{Tp: TokenRParen, Value: ")"})
+			tokens = append(tokens, Token{TokenRParen, string(ch)})
 			pos++
-		case unicode.IsDigit(ch) || ch == '.':
-			// token is number or dot
+		case unicode.IsDigit(ch), ch == '.':
 			start := pos
-			hasDot := ch == '.'
 			pos++
+			hasDot := ch == '.'
 			for pos < len(content) && (unicode.IsDigit(rune(content[pos])) || content[pos] == '.') {
 				if content[pos] == '.' {
 					if hasDot {
-						return tokens, fmt.Errorf("unexpected digit at position %d", pos)
+						return tokens, fmt.Errorf("invalid character in number: %s, position: %d",
+							content[start:pos], pos)
 					}
 					hasDot = true
 				}
 				pos++
 			}
 
-			// Abnormal situation, the number ends with a dot.
-			if content[pos] == '.' {
-				return tokens, fmt.Errorf("unexpected digit at position %d", pos)
-			}
-
-			tokens = append(tokens, Token{Tp: TokenNumber, Value: content[start:pos]})
-		case unicode.IsLetter(ch) || ch == '_':
-			// token is letter or _.
+			tokens = append(tokens, Token{TokenNumber, content[start:pos]})
+		case ch == '>', ch == '<', ch == '=':
 			start := pos
 			pos++
-			for pos < len(content) && (unicode.IsLetter(rune(content[pos])) || content[pos] == '_') {
+			if pos < len(content) && content[pos] == '=' {
+				tokens = append(tokens, Token{TokenOperator, content[start : pos+1]})
+				pos++
+			} else {
+				tokens = append(tokens, Token{TokenOperator, string(ch)})
+			}
+		case unicode.IsLetter(ch), ch == '_':
+			start := pos
+			pos++
+			for pos < len(content) && (unicode.IsLetter(rune(content[pos])) || content[pos] == '_' || unicode.IsDigit(rune(content[pos]))) {
 				pos++
 			}
+
 			value := content[start:pos]
 			upperValue := strings.ToUpper(value)
-			if upperValue == "OR" || upperValue == "AND" {
-				tokens = append(tokens, Token{Tp: TokenOperator, Value: upperValue})
-			} else {
-				tokens = append(tokens, Token{Tp: TokenIdentifier, Value: upperValue})
+			switch upperValue {
+			case LogicUpperOr, LogicUpperAnd:
+				tokens = append(tokens, Token{TokenLogicalOp, upperValue})
+			default:
+				tokens = append(tokens, Token{TokenIdentifier, value})
 			}
 		default:
-			return tokens, fmt.Errorf("token (%v) is not valid", ch)
+			return tokens, fmt.Errorf("invalid character in identifier: %s, position: %d", string(ch), pos)
 		}
 	}
 
 	return tokens, nil
+}
+
+type Expr interface {
+	Evaluate() (bool, error)
+}
+
+// LogicalExpr the struct of logical expr, such as cpu_usage > 70 OR mem_usage >= 80
+type LogicalExpr struct {
+	Operator string // OR 、AND
+	Left     Expr
+	Right    Expr
+}
+
+func (e *LogicalExpr) Evaluate() (bool, error) {
+	l, err := e.Left.Evaluate()
+	if err != nil {
+		return false, err
+	}
+
+	r, err := e.Right.Evaluate()
+	if err != nil {
+		return false, err
+	}
+
+	switch e.Operator {
+	case LogicAnd, LogicUpperAnd:
+		return l && r, nil
+	case LogicOr, LogicUpperOr:
+		return l || r, nil
+	default:
+		return false, fmt.Errorf("unsupported logical operator: %s", e.Operator)
+	}
+}
+
+// Condition the struct of trigger condition, such as cpu_usage > 80, mem_usage >= 80
+type Condition struct {
+	Field    string
+	Operator string // >, >=, <, <=, ==
+	Value    float64
+}
+
+func (c *Condition) Evaluate() (bool, error) {
+	_, ok := metricsMap[c.Field]
+	if !ok {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+type ParenExpr struct {
+	Ep Expr
+}
+type TriggerParser struct {
+	tokens []Token
+	pos    int
 }
