@@ -16,6 +16,7 @@ package engine
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -36,6 +37,44 @@ const (
 	TokenLogicalOp
 	TokenLParen
 	TokenRParen
+)
+
+func (t TokenType) String() string {
+	switch t {
+	case TokenIdentifier:
+		return "identifier"
+	case TokenNumber:
+		return "number"
+	case TokenOperator:
+		return "operator"
+	case TokenLogicalOp:
+		return "logical op"
+	case TokenLParen:
+		return "lparen"
+	case TokenRParen:
+		return "rparen"
+	default:
+		return "unknown"
+	}
+}
+
+var (
+	metricsMap = map[string]struct{}{
+		"cpu_usage":       {},
+		"mem_usage":       {},
+		"err_rate":        {},
+		"mem_used":        {},
+		"request_latency": {},
+		"active_conns":    {},
+	}
+
+	operatorsMap = map[string]struct{}{
+		">":  {},
+		"<":  {},
+		">=": {},
+		"<=": {},
+		"=":  {},
+	}
 )
 
 type Token struct {
@@ -143,7 +182,7 @@ func (e *LogicalExpr) Evaluate() (bool, error) {
 // Condition the struct of trigger condition, such as cpu_usage > 80, mem_usage >= 80
 type Condition struct {
 	Field    string
-	Operator string // >, >=, <, <=, ==
+	Operator string // >, >=, <, <=, =
 	Value    float64
 }
 
@@ -153,13 +192,141 @@ func (c *Condition) Evaluate() (bool, error) {
 		return false, nil
 	}
 
-	return true, nil
+	switch c.Operator {
+	case ">", ">=", "<", "<=", "=":
+		return true, nil
+	default:
+		return false, fmt.Errorf("unsupported condition operator: %s", c.Operator)
+	}
 }
 
 type ParenExpr struct {
 	Ep Expr
 }
 type TriggerParser struct {
+	// all lex tokens
 	tokens []Token
-	pos    int
+	// current token index
+	pos int
+}
+
+func (t *TriggerParser) Evaluate() (bool, error) {
+	var stack []string
+	for _, token := range t.tokens {
+		if token.Tp == TokenLParen {
+			stack = append(stack, "(")
+		} else if token.Tp == TokenRParen {
+			if len(stack) != 0 && stack[len(stack)-1] == "(" {
+				stack = stack[:len(stack)-1]
+			} else {
+				return false, nil
+			}
+		}
+	}
+
+	return true, nil
+}
+
+func (t *TriggerParser) parseExpression() (Expr, error) {
+	left, err := t.parseTerm()
+	if err != nil {
+		return nil, err
+	}
+
+	for {
+		token := t.peek()
+		switch token.Tp {
+		case TokenLogicalOp:
+			operator := token.Value
+			t.consume()
+			right, err := t.parseTerm()
+			if err != nil {
+				return nil, err
+			}
+			return &LogicalExpr{
+				Operator: operator,
+				Left:     left,
+				Right:    right,
+			}, nil
+
+		default:
+			return left, nil
+		}
+	}
+}
+
+func (t *TriggerParser) parseTerm() (Expr, error) {
+	token := t.peek()
+	if token.Tp == TokenLParen {
+		t.consume()
+		expr, err := t.parseExpression()
+		if err != nil {
+			return nil, err
+		}
+
+		if t.peek().Tp != TokenRParen {
+			return nil, fmt.Errorf("expected ')' but got '%s'", t.peek().Tp.String())
+		}
+
+		return expr, nil
+	}
+
+	return t.parseCondition()
+}
+
+// parseCondition parse the condition unit.
+func (t *TriggerParser) parseCondition() (Expr, error) {
+	// get and validate field.
+	filedToken := t.peek()
+	if filedToken.Tp != TokenIdentifier {
+		return nil, fmt.Errorf("expected identifier, got %v", filedToken.Tp)
+	}
+	field := filedToken.Value
+	_, ok := metricsMap[field]
+	if !ok {
+		return nil, fmt.Errorf("expected metrics field, got %v", field)
+	}
+
+	// get and validate operator.
+	t.consume()
+	operatorToken := t.peek()
+	if operatorToken.Tp != TokenOperator {
+		return nil, fmt.Errorf("expected operator, got %v", operatorToken.Tp)
+	}
+	operator := operatorToken.Value
+	_, ok = operatorsMap[operator]
+	if !ok {
+		return nil, fmt.Errorf("expected operator, got %v", operator)
+	}
+
+	// get and validate value.
+	t.consume()
+	valueToken := t.peek()
+	if valueToken.Tp != TokenNumber {
+		return nil, fmt.Errorf("expected number, got %v", valueToken.Tp)
+	}
+	value, err := strconv.ParseFloat(valueToken.Value, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Condition{
+		Field:    field,
+		Operator: operator,
+		Value:    value,
+	}, nil
+}
+
+// peek return the next token without consuming it.
+func (t *TriggerParser) peek() Token {
+	if t.pos >= len(t.tokens) {
+		return Token{Tp: -1, Value: ""}
+	}
+
+	return t.tokens[t.pos]
+}
+
+// consume moves to next token
+func (t *TriggerParser) consume() {
+	t.pos++
 }
