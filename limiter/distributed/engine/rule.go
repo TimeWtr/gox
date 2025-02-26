@@ -21,17 +21,6 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-var (
-	metricsMap = map[string]struct{}{
-		"cpu_usage":       {},
-		"mem_usage":       {},
-		"err_rate":        {},
-		"mem_used":        {},
-		"request_latency": {},
-		"active_conns":    {},
-	}
-)
-
 const (
 	// ScopeTypeService type is service
 	ScopeTypeService = "service"
