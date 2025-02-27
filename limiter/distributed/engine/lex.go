@@ -147,15 +147,71 @@ func Lex(content string) ([]Token, error) {
 	return tokens, nil
 }
 
-type Expr interface {
-	Evaluate() (bool, error)
+type NodeType int
+
+const (
+	NodeLogical NodeType = iota
+	NodeCondition
+)
+
+func (t *NodeType) String() string {
+	switch *t {
+	case NodeLogical:
+		return "logical Node"
+	case NodeCondition:
+		return "condition Node"
+	default:
+		return "unknown node"
+	}
 }
+
+type Expr interface {
+	// GetType get the type of node
+	GetType() NodeType
+	// GetOperator get the operator only if node type is logical.
+	GetOperator() string
+	// GetChildren get the children expression.
+	GetChildren() []Expr
+	// GetCondition get the condition only if node type is condition.
+	GetCondition() *Condition
+	Evaluate() (bool, error)
+	String()
+}
+
+var _ Expr = (*LogicalExpr)(nil)
 
 // LogicalExpr the struct of logical expr, such as cpu_usage > 70 OR mem_usage >= 80
 type LogicalExpr struct {
 	Operator string // OR 、AND
 	Left     Expr
 	Right    Expr
+}
+
+func (e *LogicalExpr) GetType() NodeType {
+	return NodeLogical
+}
+
+func (e *LogicalExpr) GetOperator() string {
+	return e.Operator
+}
+
+func (e *LogicalExpr) GetChildren() []Expr {
+	return []Expr{e.Left, e.Right}
+}
+
+func (e *LogicalExpr) GetCondition() *Condition {
+	return nil
+}
+
+func (e *LogicalExpr) String() {
+	fmt.Println("Operator:", e.Operator)
+	if e.Left != nil {
+		e.Left.String()
+	}
+
+	if e.Right != nil {
+		e.Right.String()
+	}
 }
 
 func (e *LogicalExpr) Evaluate() (bool, error) {
@@ -186,6 +242,30 @@ type Condition struct {
 	Value    float64
 }
 
+var _ Expr = (*Condition)(nil)
+
+func (c *Condition) GetType() NodeType {
+	return NodeCondition
+}
+
+func (c *Condition) GetOperator() string {
+	return ""
+}
+
+func (c *Condition) GetChildren() []Expr {
+	return nil
+}
+
+func (c *Condition) GetCondition() *Condition {
+	return c
+}
+
+func (c *Condition) String() {
+	fmt.Println("field: ", c.Field)
+	fmt.Println("operator: ", c.Operator)
+	fmt.Println("value: ", c.Value)
+}
+
 func (c *Condition) Evaluate() (bool, error) {
 	_, ok := metricsMap[c.Field]
 	if !ok {
@@ -203,11 +283,20 @@ func (c *Condition) Evaluate() (bool, error) {
 type ParenExpr struct {
 	Ep Expr
 }
+
 type TriggerParser struct {
 	// all lex tokens
 	tokens []Token
 	// current token index
 	pos int
+}
+
+func NewTriggerParser(tokens []Token) *TriggerParser {
+	return &TriggerParser{tokens: tokens}
+}
+
+func (t *TriggerParser) Parse() (Expr, error) {
+	return t.parseExpression()
 }
 
 func (t *TriggerParser) Evaluate() (bool, error) {
@@ -237,11 +326,11 @@ func (t *TriggerParser) parseExpression() (Expr, error) {
 		token := t.peek()
 		switch token.Tp {
 		case TokenLogicalOp:
-			operator := token.Value
 			t.consume()
-			right, err := t.parseTerm()
-			if err != nil {
-				return nil, err
+			operator := token.Value
+			right, er := t.parseTerm()
+			if er != nil {
+				return nil, er
 			}
 			return &LogicalExpr{
 				Operator: operator,
@@ -267,6 +356,7 @@ func (t *TriggerParser) parseTerm() (Expr, error) {
 		if t.peek().Tp != TokenRParen {
 			return nil, fmt.Errorf("expected ')' but got '%s'", t.peek().Tp.String())
 		}
+		t.consume()
 
 		return expr, nil
 	}
@@ -310,6 +400,8 @@ func (t *TriggerParser) parseCondition() (Expr, error) {
 		return nil, err
 	}
 
+	t.consume()
+
 	return &Condition{
 		Field:    field,
 		Operator: operator,
@@ -329,4 +421,13 @@ func (t *TriggerParser) peek() Token {
 // consume moves to next token
 func (t *TriggerParser) consume() {
 	t.pos++
+}
+
+func ParseTrigger(trigger string) (Expr, error) {
+	tokens, err := Lex(trigger)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewTriggerParser(tokens).Parse()
 }
