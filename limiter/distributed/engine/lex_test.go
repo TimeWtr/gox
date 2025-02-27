@@ -176,3 +176,14 @@ func TestLex(t *testing.T) {
 		})
 	}
 }
+
+func TestParseTrigger(t *testing.T) {
+	expr, err := ParseTrigger("cpu_usage > 0.9 and (mem_usage >= 0.8 OR err_rate > 0.2)")
+	assert.NoError(t, err)
+	//expr.String()
+	if expr.GetType() == NodeLogical {
+		children := expr.GetChildren()
+		children[0].String()
+		children[1].String()
+	}
+}

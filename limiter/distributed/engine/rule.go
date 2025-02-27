@@ -99,7 +99,7 @@ type Conf struct {
 	Strategy      StrategyType `json:"strategy" yaml:"strategy" toml:"strategy"`
 	Period        PeriodType   `json:"period" yaml:"period" toml:"period"`
 	Priority      PriorityType `json:"priority" yaml:"priority" toml:"priority"`
-	Rules         []Rule2      `json:"rules" yaml:"rules" toml:"rules"`
+	Rules         []Rule       `json:"rules" yaml:"rules" toml:"rules"`
 }
 
 func (c *Conf) Check() error {
@@ -136,7 +136,7 @@ func (c *Conf) Check() error {
 	return eg.Wait()
 }
 
-type Rule2 struct {
+type Rule struct {
 	Scope         Scope         `json:"scope" yaml:"scope" toml:"scope"`
 	BaseThreshold uint64        `json:"base_threshold" yaml:"base_threshold" toml:"base_threshold"`
 	MinThreshold  uint64        `json:"min_threshold" yaml:"min_threshold" toml:"min_threshold"`
@@ -144,11 +144,12 @@ type Rule2 struct {
 	Period        PeriodType    `json:"period" yaml:"period" toml:"period"`
 	Priority      PriorityType  `json:"priority" yaml:"priority" toml:"priority"`
 	Trigger       TriggerType   `json:"trigger" yaml:"trigger" toml:"trigger"`
+	TriggerAST    Expr          `json:"-"` // parse and generate ast
 	Algorithm     AlgorithmType `json:"algorithm" yaml:"algorithm" toml:"algorithm"`
-	Children      []Rule2       `json:"children" yaml:"children" toml:"children"`
+	Children      []Rule        `json:"children" yaml:"children" toml:"children"`
 }
 
-func (r *Rule2) check() error {
+func (r *Rule) check() error {
 	// check scope type
 	err := r.Scope.valid()
 	if err != nil {
@@ -186,12 +187,6 @@ func (r *Rule2) check() error {
 
 	// check limit trigger
 	if len(r.Trigger) != 0 {
-		//for _, t := range r.Trigger {
-		//	err = t.valid()
-		//	if err != nil {
-		//		return err
-		//	}
-		//}
 		if err = r.Trigger.valid(); err != nil {
 			return err
 		}
