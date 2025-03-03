@@ -1,53 +1,61 @@
-base_threshold = 1000
-min_threshold = 300
-strategy = "qps"
-period = "1s"
-priority = "high"
-
-[[rules]]
-scope = { type = "service", value = "order_service" }
-base_threshold = 1000
-min_threshold = 300
-strategy = "qps"
-priority = "medium"
-period = "1s"
-trigger = "cpu_usage > 0.8 OR mem_usage > 0.8 OR err_rate > 0.2"
-
-[[rules.children]]
-scope = { type = "api", value = "/api/v1/order" }
-base_threshold = 500
-min_threshold = 100
-strategy = "concurrency"
-priority = "low"
-period = "1s"
-
-[[rules.children]]
-scope = { type = "api", value = "/api/v1/user" }
-base_threshold = 300
-min_threshold = 100
-strategy = "qps"
-priority = "low"
-period = "1s"
-
-[[rules.children.children]]
-scope = { type = "user", value = "*" }
-base_threshold = 5
-strategy = "total"
-priority = "low"
-period = "1m"
-algorithm = "TokenBucket"
-
-[[rules.children.children]]
-scope = { type = "ip", value = "*" }
-base_threshold = 5
-priority = "low"
-strategy = "total"
-period = "1m"
-algorithm = "SlidingWindow"
-
+# Redis 集群配置
 [redis_cluster]
 addr = [
     "http://127.0.0.1:8081",
     "http://127.0.0.1:8082",
     "http://127.0.0.1:8083"
 ]
+
+# 全局规则配置
+[rules]
+base_threshold = 1000
+min_threshold = 300
+strategy = "qps"
+period = "1s"
+priority = "high"
+
+# 一级子规则（服务级）
+[[rules.children]]
+scope = { type = "service", value = "order_service" }
+base_threshold = 1000
+min_threshold = 300
+strategy = "qps"
+period = "1s"
+priority = "medium"
+trigger = "cpu_usage > 0.8 OR mem_usage > 0.8"
+
+# 二级子规则（API级）
+[[rules.children.children]]
+scope = { type = "api", value = "/api/v1/order" }
+base_threshold = 500
+min_threshold = 100
+strategy = "concurrency"
+period = "1s"
+priority = "low"
+trigger = "request_latency > 200 OR err_rate > 0.2"
+
+[[rules.children.children]]
+scope = { type = "api", value = "/api/v1/user" }
+base_threshold = 300
+min_threshold = 100
+strategy = "qps"
+period = "1s"
+priority = "low"
+
+# 三级子规则（用户级）
+[[rules.children.children.children]]
+scope = { type = "user", value = "*" }
+base_threshold = 5
+strategy = "total"
+period = "1m"
+priority = "low"
+algorithm = "TokenBucket"
+
+# 三级子规则（IP级）
+[[rules.children.children.children]]
+scope = { type = "ip", value = "*" }
+base_threshold = 5
+strategy = "total"
+period = "1m"
+priority = "low"
+algorithm = "SlidingWindow"

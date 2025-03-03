@@ -19,6 +19,8 @@ import (
 	"fmt"
 
 	"golang.org/x/sync/errgroup"
+
+	_ "golang.org/x/sync/errgroup"
 )
 
 const (
@@ -94,40 +96,27 @@ func (p *PeriodType) valid() error {
 }
 
 type Conf struct {
-	BaseThreshold uint64       `json:"base_threshold" yaml:"base_threshold" toml:"base_threshold"`
-	MinThreshold  uint64       `json:"min_threshold" yaml:"min_threshold" toml:"min_threshold"`
-	Strategy      StrategyType `json:"strategy" yaml:"strategy" toml:"strategy"`
-	Period        PeriodType   `json:"period" yaml:"period" toml:"period"`
-	Priority      PriorityType `json:"priority" yaml:"priority" toml:"priority"`
-	Rules         []Rule       `json:"rules" yaml:"rules" toml:"rules"`
+	RedisCluster RedisCluster `json:"redis_cluster" toml:"redis_cluster" yaml:"redis_cluster"`
+	Rules        Rule         `json:"rules" yaml:"rules" toml:"rules"`
 }
 
 func (c *Conf) Check() error {
-	// global strategy value valid
-	err := c.Strategy.valid()
-	if err != nil {
+	if err := c.RedisCluster.Check(); err != nil {
 		return err
 	}
 
-	// global period value valid
-	err = c.Period.valid()
-	if err != nil {
-		return err
+	if c.Rules.Children == nil {
+		return nil
 	}
 
-	// global priority value valid
-	err = c.Priority.valid()
-	if err != nil {
-		return err
+	// fast path
+	if len(c.Rules.Children) == 1 {
+		return c.Rules.Children[0].check()
 	}
 
-	if len(c.Rules) == 0 {
-		return errors.New("rules must not be empty")
-	}
-
-	// check all rules
+	// low path
 	var eg errgroup.Group
-	for _, rule := range c.Rules {
+	for _, rule := range c.Rules.Children {
 		eg.Go(func() error {
 			return rule.check()
 		})
@@ -136,16 +125,28 @@ func (c *Conf) Check() error {
 	return eg.Wait()
 }
 
+type RedisCluster struct {
+	Addr []string `json:"addr" toml:"addr" yaml:"addr"`
+}
+
+func (c *RedisCluster) Check() error {
+	if len(c.Addr) == 0 {
+		return errors.New("redis cluster address must not be empty")
+	}
+
+	return nil
+}
+
 type Rule struct {
-	Scope         Scope         `json:"scope" yaml:"scope" toml:"scope"`
+	Scope         Scope         `json:"scope,omitempty" yaml:"scope,omitempty" toml:"scope,omitempty"`
 	BaseThreshold uint64        `json:"base_threshold" yaml:"base_threshold" toml:"base_threshold"`
 	MinThreshold  uint64        `json:"min_threshold" yaml:"min_threshold" toml:"min_threshold"`
 	Strategy      StrategyType  `json:"strategy" yaml:"strategy" toml:"strategy"`
 	Period        PeriodType    `json:"period" yaml:"period" toml:"period"`
 	Priority      PriorityType  `json:"priority" yaml:"priority" toml:"priority"`
-	Trigger       TriggerType   `json:"trigger" yaml:"trigger" toml:"trigger"`
+	Trigger       TriggerType   `json:"trigger,omitempty" yaml:"trigger,omitempty" toml:"trigger,omitempty"`
 	TriggerAST    Expr          `json:"-"` // parse and generate ast
-	Algorithm     AlgorithmType `json:"algorithm" yaml:"algorithm" toml:"algorithm"`
+	Algorithm     AlgorithmType `json:"algorithm,omitempty" yaml:"algorithm,omitempty" toml:"algorithm,omitempty"`
 	Children      []Rule        `json:"children" yaml:"children" toml:"children"`
 }
 
@@ -265,4 +266,104 @@ type Metrics struct {
 	ErrRate float64 `json:"err_rate,omitempty"`
 	// current active connections.
 	ActiveConns uint64 `json:"active_conns,omitempty"`
+}
+
+type RuleTreeInter interface {
+	GetScope() Scope
+	GetBaseThreshold() uint64
+	GetMinThreshold() uint64
+	GetPeriod() PeriodType
+	GetPriority() PriorityType
+	GetTriggerAST() Expr
+	GetAlgorithm() AlgorithmType
+	GetChildren() []RuleTree
+}
+
+var _ RuleTreeInter = (*RuleTree)(nil)
+
+type RuleTree struct {
+	scope         Scope
+	baseThreshold uint64
+	minThreshold  uint64
+	strategy      StrategyType
+	period        PeriodType
+	priority      PriorityType
+	triggerAST    Expr
+	algorithm     AlgorithmType
+	children      []RuleTree
+}
+
+func (r *RuleTree) GetScope() Scope {
+	return r.scope
+}
+
+func (r *RuleTree) GetBaseThreshold() uint64 {
+	return r.baseThreshold
+}
+
+func (r *RuleTree) GetMinThreshold() uint64 {
+	return r.minThreshold
+}
+
+func (r *RuleTree) GetPeriod() PeriodType {
+	return r.period
+}
+
+func (r *RuleTree) GetPriority() PriorityType {
+	return r.priority
+}
+
+func (r *RuleTree) GetTriggerAST() Expr {
+	return r.triggerAST
+}
+
+func (r *RuleTree) GetAlgorithm() AlgorithmType {
+	return r.algorithm
+}
+
+func (r *RuleTree) GetChildren() []RuleTree {
+	return r.children
+}
+
+// BuildRuleTrees the method to build the rule trees.
+func BuildRuleTrees(r Rule) ([]RuleTree, error) {
+	return builder(r)
+}
+
+func builder(rs Rule) ([]RuleTree, error) {
+	if rs.BaseThreshold == 0 {
+		return nil, errors.New("rule must not be nil")
+	}
+
+	var trees []RuleTree
+
+	rt := &RuleTree{
+		scope:         rs.Scope,
+		baseThreshold: rs.BaseThreshold,
+		minThreshold:  rs.MinThreshold,
+		strategy:      rs.Strategy,
+		period:        rs.Period,
+		priority:      rs.Priority,
+	}
+
+	if rs.Trigger != "" {
+		expr, err := parseTrigger(string(rs.Trigger))
+		if err != nil {
+			return nil, err
+		}
+		rt.triggerAST = expr
+	}
+
+	if rs.Children != nil {
+		for _, child := range rs.Children {
+			tree, er := builder(child)
+			if er != nil {
+				return nil, er
+			}
+			rt.children = tree
+		}
+	}
+	trees = append(trees, *rt)
+
+	return trees, nil
 }

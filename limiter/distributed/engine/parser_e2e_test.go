@@ -219,7 +219,7 @@ period = "1m"`
 //	bs, err := NewRedisSource(client, "test", DataTypeJson).Read()
 //	assert.Nil(t, err)
 //
-//	cf, err := NewJsonParser(bs).Parse()
+//	cf, err := NewJsonParser(bs).parse()
 //	assert.Nil(t, err)
 //	t.Logf("conf: %+v\n", cf)
 //}
@@ -238,7 +238,7 @@ period = "1m"`
 //	bs, err := NewRedisSource(client, "test", DataTypeYaml).Read()
 //	assert.Nil(t, err)
 //
-//	cf, err := NewYamlParser(bs).Parse()
+//	cf, err := NewYamlParser(bs).parse()
 //	assert.Nil(t, err)
 //	t.Logf("conf: %+v\n", cf)
 //}
@@ -258,7 +258,7 @@ period = "1m"`
 //	assert.Nil(t, err)
 //
 //	p := NewTomlParser(bs)
-//	cf, err := p.Parse()
+//	cf, err := p.parse()
 //	assert.Nil(t, err)
 //	t.Logf("conf: %+v\n", cf)
 //}
