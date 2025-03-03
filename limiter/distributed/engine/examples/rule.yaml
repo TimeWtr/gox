@@ -1,47 +1,57 @@
-base_threshold: 1000
-min_threshold: 300
-strategy: qps
-period: 1s
-priority: high
+redis_cluster:
+  addr:
+    - "http://127.0.0.1:8081"
+    - "http://127.0.0.1:8082"
+    - "http://127.0.0.1:8083"
+
 rules:
-  - scope:
-      type: service
-      value: order_service
-    base_threshold: 1000
-    min_threshold: 300
-    strategy: qps
-    priority: medium
-    period: 1s
-    trigger: cpu_usage > 0.8 OR mem_usage > 0.8 OR err_rate > 0.2
-    children:
-      - scope:
-          type: api
-          value: /api/v1/order
-        base_threshold: 500
-        min_threshold: 100
-        strategy: concurrency
-        priority: low
-        period: 1s
-      - scope:
-          type: api
-          value: /api/v1/user
-        base_threshold: 300
-        min_threshold: 100
-        strategy: qps
-        priority: low
-        period: 1s
-        children:
-          - scope:
-              type: user
-              value: "*"
-            base_threshold: 5
-            strategy: total
-            priority: low
-            period: 1m
-          - scope:
-              type: ip
-              value: "*"
-            base_threshold: 5
-            priority: low
-            strategy: total
-            period: 1m
+  base_threshold: 1000
+  min_threshold: 300
+  strategy: "qps"
+  period: "1s"
+  priority: "high"
+  children:
+    - scope:
+        type: "service"
+        value: "order_service"
+      base_threshold: 1000
+      min_threshold: 300
+      strategy: "qps"
+      priority: "medium"
+      period: "1s"
+      trigger: "cpu_usage > 0.8 OR mem_usage > 0.8"
+      children:
+        - scope:
+            type: "api"
+            value: "/api/v1/order"
+          base_threshold: 500
+          min_threshold: 100
+          strategy: "concurrency"
+          priority: "low"
+          period: "1s"
+          trigger: "request_latency > 200 OR err_rate > 0.2"
+        - scope:
+            type: "api"
+            value: "/api/v1/user"
+          base_threshold: 300
+          min_threshold: 100
+          strategy: "qps"
+          priority: "low"
+          period: "1s"
+          children:
+            - scope:
+                type: "user"
+                value: "*"
+              base_threshold: 5
+              strategy: "total"
+              priority: "low"
+              period: "1m"
+              algorithm: "TokenBucket"
+            - scope:
+                type: "ip"
+                value: "*"
+              base_threshold: 5
+              priority: "low"
+              strategy: "total"
+              period: "1m"
+              algorithm: "SlidingWindow"

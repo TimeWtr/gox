@@ -82,7 +82,7 @@ type Token struct {
 	Value string
 }
 
-func Lex(content string) ([]Token, error) {
+func lex(content string) ([]Token, error) {
 	var tokens []Token
 	content = strings.TrimSpace(content)
 	pos := 0
@@ -165,6 +165,14 @@ func (t *NodeType) String() string {
 	}
 }
 
+type EvalContext struct {
+	metrics map[string]float64
+}
+
+func WithEvalContext(metrics map[string]float64) EvalContext {
+	return EvalContext{metrics: metrics}
+}
+
 type Expr interface {
 	// GetType get the type of node
 	GetType() NodeType
@@ -174,8 +182,10 @@ type Expr interface {
 	GetChildren() []Expr
 	// GetCondition get the condition only if node type is condition.
 	GetCondition() *Condition
-	Evaluate() (bool, error)
-	String()
+	// Evaluate the core logic to evaluate metric value.
+	Evaluate(EvalContext) (bool, error)
+	// String return the value type string.
+	String() string
 }
 
 var _ Expr = (*LogicalExpr)(nil)
@@ -203,24 +213,17 @@ func (e *LogicalExpr) GetCondition() *Condition {
 	return nil
 }
 
-func (e *LogicalExpr) String() {
-	fmt.Println("Operator:", e.Operator)
-	if e.Left != nil {
-		e.Left.String()
-	}
-
-	if e.Right != nil {
-		e.Right.String()
-	}
+func (e *LogicalExpr) String() string {
+	return fmt.Sprintf("%s %s %s", e.Left, e.Operator, e.Right)
 }
 
-func (e *LogicalExpr) Evaluate() (bool, error) {
-	l, err := e.Left.Evaluate()
+func (e *LogicalExpr) Evaluate(ctx EvalContext) (bool, error) {
+	l, err := e.Left.Evaluate(ctx)
 	if err != nil {
 		return false, err
 	}
 
-	r, err := e.Right.Evaluate()
+	r, err := e.Right.Evaluate(ctx)
 	if err != nil {
 		return false, err
 	}
@@ -260,23 +263,29 @@ func (c *Condition) GetCondition() *Condition {
 	return c
 }
 
-func (c *Condition) String() {
-	fmt.Println("field: ", c.Field)
-	fmt.Println("operator: ", c.Operator)
-	fmt.Println("value: ", c.Value)
+func (c *Condition) String() string {
+	return fmt.Sprintf("%s %s %f", c.Field, c.Operator, c.Value)
 }
 
-func (c *Condition) Evaluate() (bool, error) {
-	_, ok := metricsMap[c.Field]
+func (c *Condition) Evaluate(ctx EvalContext) (bool, error) {
+	actualValue, ok := ctx.metrics[c.Field]
 	if !ok {
-		return false, nil
+		return false, fmt.Errorf("trigger field %s not exist metrics", c.Field)
 	}
 
 	switch c.Operator {
-	case ">", ">=", "<", "<=", "=":
-		return true, nil
+	case ">":
+		return actualValue > c.Value, nil
+	case "<":
+		return actualValue < c.Value, nil
+	case ">=":
+		return actualValue >= c.Value, nil
+	case "<=":
+		return actualValue <= c.Value, nil
+	case "=":
+		return actualValue == c.Value, nil
 	default:
-		return false, fmt.Errorf("unsupported condition operator: %s", c.Operator)
+		return false, fmt.Errorf("invalid condition operator: %s", c.Operator)
 	}
 }
 
@@ -291,15 +300,15 @@ type TriggerParser struct {
 	pos int
 }
 
-func NewTriggerParser(tokens []Token) *TriggerParser {
+func newTriggerParser(tokens []Token) *TriggerParser {
 	return &TriggerParser{tokens: tokens}
 }
 
-func (t *TriggerParser) Parse() (Expr, error) {
+func (t *TriggerParser) parse() (Expr, error) {
 	return t.parseExpression()
 }
 
-func (t *TriggerParser) Evaluate() (bool, error) {
+func (t *TriggerParser) Evaluate(metrics map[string]float64) (bool, error) {
 	var stack []string
 	for _, token := range t.tokens {
 		if token.Tp == TokenLParen {
@@ -423,11 +432,12 @@ func (t *TriggerParser) consume() {
 	t.pos++
 }
 
-func ParseTrigger(trigger string) (Expr, error) {
-	tokens, err := Lex(trigger)
+// parseTrigger the main method for parsing trigger and generate Expr.
+func parseTrigger(trigger string) (Expr, error) {
+	tokens, err := lex(trigger)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewTriggerParser(tokens).Parse()
+	return newTriggerParser(tokens).parse()
 }

@@ -163,7 +163,7 @@ func TestLex(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tokens, err := Lex(tc.input)
+			tokens, err := lex(tc.input)
 			assert.Equal(t, tc.wantErr, err)
 			if err != nil {
 				return
@@ -178,7 +178,7 @@ func TestLex(t *testing.T) {
 }
 
 func TestParseTrigger(t *testing.T) {
-	expr, err := ParseTrigger("cpu_usage > 0.9 and (mem_usage >= 0.8 OR err_rate > 0.2)")
+	expr, err := parseTrigger("cpu_usage > 0.9 and (mem_usage >= 0.8 OR err_rate > 0.2)")
 	assert.NoError(t, err)
 	//expr.String()
 	if expr.GetType() == NodeLogical {
