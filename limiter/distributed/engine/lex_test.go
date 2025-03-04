@@ -178,12 +178,106 @@ func TestLex(t *testing.T) {
 }
 
 func TestParseTrigger(t *testing.T) {
-	expr, err := parseTrigger("cpu_usage > 0.9 and (mem_usage >= 0.8 OR err_rate > 0.2)")
+	testCases := []struct {
+		name    string
+		trigger string
+		wantErr error
+	}{
+		{
+			name:    "or and operator",
+			trigger: "cpu_usage > 0.8 OR mem_usage > 0.8 AND err_rate > 0.2",
+			wantErr: nil,
+		},
+		{
+			name:    "paren and operator",
+			trigger: "cpu_usage > 0.8 OR (mem_usage > 0.8 AND err_rate > 0.2)",
+			wantErr: nil,
+		},
+		{
+			name:    "paren or operator",
+			trigger: "cpu_usage > 0.8 OR (mem_usage > 0.8 or err_rate > 0.2)",
+			wantErr: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			expr, err := parseTrigger(tc.trigger)
+			assert.Equal(t, tc.wantErr, err)
+			t.Logf("expr: %+v", expr)
+		})
+	}
+}
+
+func TestTriggerParser_Evaluate(t *testing.T) {
+	trigger := "cpu_usage > 0.8 OR (mem_usage > 0.8 AND err_rate > 0.2)"
+	expr, err := parseTrigger(trigger)
 	assert.NoError(t, err)
-	//expr.String()
-	if expr.GetType() == NodeLogical {
-		children := expr.GetChildren()
-		children[0].String()
-		children[1].String()
+	t.Logf("expr: %+v", expr)
+	testCases := []struct {
+		name    string
+		ctx     func() EvalContext
+		wantRes bool
+		wantErr error
+	}{
+		{
+			name: "over threshold",
+			ctx: func() EvalContext {
+				return WithEvalContext(map[string]float64{
+					"cpu_usage": 0.9,
+					"mem_usage": 0.8,
+					"err_rate":  0.2,
+				})
+			},
+			wantRes: true,
+			wantErr: nil,
+		},
+		{
+			name: "over threshold paren",
+			ctx: func() EvalContext {
+				return WithEvalContext(map[string]float64{
+					"cpu_usage": 0.8,
+					"mem_usage": 0.7,
+					"err_rate":  0.2,
+				})
+			},
+			wantRes: false,
+			wantErr: nil,
+		},
+		{
+			name: "over threshold paren and",
+			ctx: func() EvalContext {
+				return WithEvalContext(map[string]float64{
+					"cpu_usage": 0.8,
+					"mem_usage": 0.9,
+					"err_rate":  0.3,
+				})
+			},
+			wantRes: true,
+			wantErr: nil,
+		},
+		{
+			name: "not over threshold",
+			ctx: func() EvalContext {
+				return WithEvalContext(map[string]float64{
+					"cpu_usage": 0.7,
+					"mem_usage": 0.8,
+					"err_rate":  0.2,
+				})
+			},
+			wantRes: false,
+			wantErr: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ok, er := expr.Evaluate(tc.ctx())
+			assert.Equal(t, tc.wantErr, er)
+			if er != nil {
+				return
+			}
+			assert.Equal(t, tc.wantRes, ok)
+		})
 	}
 }

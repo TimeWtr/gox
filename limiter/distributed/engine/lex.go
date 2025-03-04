@@ -326,51 +326,77 @@ func (t *TriggerParser) Evaluate(metrics map[string]float64) (bool, error) {
 }
 
 func (t *TriggerParser) parseExpression() (Expr, error) {
+	// handle AND
 	left, err := t.parseTerm()
 	if err != nil {
 		return nil, err
 	}
 
 	for {
-		token := t.peek()
-		switch token.Tp {
-		case TokenLogicalOp:
+		if t.peek().Tp == TokenLogicalOp && strings.ToUpper(t.peek().Value) == LogicUpperOr {
 			t.consume()
-			operator := token.Value
 			right, er := t.parseTerm()
 			if er != nil {
 				return nil, er
 			}
-			return &LogicalExpr{
-				Operator: operator,
+
+			left = &LogicalExpr{
+				Operator: LogicUpperOr,
 				Left:     left,
 				Right:    right,
-			}, nil
-
-		default:
-			return left, nil
+			}
+		} else {
+			break
 		}
 	}
+
+	return left, nil
 }
 
 func (t *TriggerParser) parseTerm() (Expr, error) {
+	left, err := t.parseFactor()
+	if err != nil {
+		return nil, err
+	}
+
+	for {
+		if t.peek().Tp == TokenLogicalOp && strings.ToUpper(t.peek().Value) == LogicUpperAnd {
+			t.consume()
+			right, er := t.parseFactor()
+			if er != nil {
+				return nil, er
+			}
+
+			left = &LogicalExpr{
+				Operator: LogicUpperAnd,
+				Left:     left,
+				Right:    right,
+			}
+		} else {
+			break
+		}
+	}
+
+	return left, nil
+}
+
+func (t *TriggerParser) parseFactor() (Expr, error) {
 	token := t.peek()
-	if token.Tp == TokenLParen {
+	switch token.Tp {
+	case TokenLParen:
 		t.consume()
 		expr, err := t.parseExpression()
 		if err != nil {
 			return nil, err
 		}
-
 		if t.peek().Tp != TokenRParen {
 			return nil, fmt.Errorf("expected ')' but got '%s'", t.peek().Tp.String())
 		}
 		t.consume()
-
 		return expr, nil
+	default:
+		return t.parseCondition()
 	}
-
-	return t.parseCondition()
 }
 
 // parseCondition parse the condition unit.
